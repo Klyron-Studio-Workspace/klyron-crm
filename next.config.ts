@@ -1,7 +1,10 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  /* config options here */
-};
+  // Uploaded files live on disk at runtime; never trace them into the build output.
+  outputFileTracingExcludes: {
+    "/*": ["./storage/**/*"],
+  },
+}
 
-export default nextConfig;
+export default nextConfig
