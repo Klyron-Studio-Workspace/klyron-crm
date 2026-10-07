@@ -46,8 +46,11 @@ function ExpenseForm({ expense, options, onDone }: { expense?: ExpenseDTO; optio
   const [projectId, setProjectId] = React.useState(expense?.project?.id ?? "none")
   const projects = clientId === "none" ? options.projects : options.projects.filter((p) => p.clientId === clientId)
 
+  // Handle each successful result once (onDone and toast change identity on re-render).
+  const handled = React.useRef<typeof state>(undefined)
   React.useEffect(() => {
-    if (state?.ok) {
+    if (state?.ok && handled.current !== state) {
+      handled.current = state
       toast.add({ type: "success", title: state.message ?? "Saved." })
       onDone()
     }

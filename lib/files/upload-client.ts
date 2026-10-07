@@ -2,16 +2,28 @@
 import type { FileDTO } from "@/lib/files/types"
 
 export type UploadTarget =
-  | { channelId: string }
+  | { channelId: string; voice?: { durationMs: number; waveform: number[] } }
   | { clientId: string; projectId?: string | null; shared?: boolean }
+  | { company: true; folder?: string | null; restricted?: boolean }
 
 export type UploadHandle = { promise: Promise<FileDTO>; abort: () => void }
 
 /** Streams one file to /api/files. Rejects with a readable message. */
 export function uploadFile(file: File, target: UploadTarget, onProgress?: (fraction: number) => void): UploadHandle {
   const params = new URLSearchParams({ name: file.name })
-  if ("channelId" in target) params.set("channelId", target.channelId)
-  else {
+  if ("channelId" in target) {
+    params.set("channelId", target.channelId)
+    if (target.voice) {
+      params.set("voice", "1")
+      params.set("durationMs", String(Math.round(target.voice.durationMs)))
+      params.set("waveform", target.voice.waveform.map((v) => Math.round(v)).join(","))
+    }
+  }
+  else if ("company" in target) {
+    params.set("company", "1")
+    if (target.folder) params.set("folder", target.folder)
+    if (target.restricted) params.set("restricted", "1")
+  } else {
     params.set("clientId", target.clientId)
     if (target.projectId) params.set("projectId", target.projectId)
     if (target.shared) params.set("shared", "1")

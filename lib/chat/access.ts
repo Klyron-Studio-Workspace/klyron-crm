@@ -11,7 +11,7 @@ import { getOrgSettings } from "@/lib/leads/queries"
  * - TEAM: every team member with chat access.
  * - CLIENT: the team (members limited to "assigned work" only see clients they
  *   own or have a project with) and that client's portal accounts.
- * - DIRECT: its members only.
+ * - DIRECT / GROUP: their members only.
  */
 
 /** Clients a scoped Member works with; null means "all clients". */
@@ -40,7 +40,7 @@ export async function channelScope(user: CurrentUser): Promise<Prisma.ChannelWhe
     OR: [
       { kind: "TEAM" },
       { kind: "CLIENT", ...(clientIds ? { clientId: { in: clientIds } } : {}) },
-      { kind: "DIRECT", members: { some: { userId: user.id } } },
+      { kind: { in: ["DIRECT", "GROUP"] }, members: { some: { userId: user.id } } },
     ],
   }
 }
@@ -56,7 +56,7 @@ export async function findAccessibleChannel(user: CurrentUser, channelId: string
  * channelScope would let see it, so live updates never reach anyone else.
  */
 export async function channelAudience(channel: Pick<Channel, "id" | "kind" | "clientId">): Promise<string[]> {
-  if (channel.kind === "DIRECT") {
+  if (channel.kind === "DIRECT" || channel.kind === "GROUP") {
     const members = await db.channelMember.findMany({ where: { channelId: channel.id }, select: { userId: true } })
     return members.map((m) => m.userId)
   }

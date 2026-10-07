@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeftIcon, FolderOpenIcon, GlobeIcon, MailIcon, MessagesSquareIcon, PhoneIcon } from "lucide-react"
 
 import { ClientAccounts } from "@/components/clients/client-accounts"
+import { BillingCard } from "@/components/finance/billing-card"
 import { ClientActions } from "@/components/clients/client-dialogs"
 import { Button } from "@/components/ui/button"
 import { NewProjectDialog } from "@/components/projects/new-project-dialog"
@@ -23,6 +24,8 @@ const clientEventText: Record<string, (m: Record<string, unknown>) => string> = 
   "client.update": (m) => `updated ${Array.isArray(m.fields) && m.fields.length ? (m.fields as string[]).join(", ") : "details"}`,
   "client.project.create": (m) => `started project “${m.name}”`,
   "project.delete": (m) => `deleted project “${m.name}”`,
+  "client.invoice.create": (m) => `created invoice ${m.number}`,
+  "client.proposal.create": (m) => `created proposal ${m.number}`,
   "client.account.create": (m) => `gave portal access to ${m.email}`,
   "client.account.remove": (m) => `removed portal access for ${m.email}`,
   "client.account.disable": (m) => `disabled portal sign-in for ${m.email}`,
@@ -52,7 +55,12 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
   })
   if (!client) notFound()
 
-  const [canChat, canFiles] = await Promise.all([can(user, "chat", "READ"), can(user, "files", "READ")])
+  const [canChat, canFiles, canFinance, canFinanceWrite] = await Promise.all([
+    can(user, "chat", "READ"),
+    can(user, "files", "READ"),
+    can(user, "finance", "READ"),
+    can(user, "finance", "WRITE"),
+  ])
   const chatChannel = canChat ? await ensureClientChannel(client.id) : null
   const [canWrite, canSeeProjects, canCreateProjects, canSeeLeads, projects, members, services, events] = await Promise.all([
     can(user, "clients", "WRITE"),
@@ -187,6 +195,8 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
               {client.notes && <p className="mt-3 border-t border-border pt-3 text-sm whitespace-pre-wrap">{client.notes}</p>}
             </CardContent>
           </Card>
+
+          {canFinance && <BillingCard clientId={client.id} canWrite={canFinanceWrite} />}
 
           <Card>
             <CardHeader className="border-b">

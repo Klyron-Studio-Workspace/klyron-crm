@@ -8,7 +8,7 @@ import { toFileDTO } from "@/lib/files/access"
 import type { FileKindKey } from "@/lib/files/types"
 import type { Prisma } from "@/lib/generated/prisma/client"
 
-export type FileFilters = { clientId?: string; projectId?: string; kind?: FileKindKey; q?: string }
+export type FileFilters = { clientId?: string; projectId?: string; kind?: FileKindKey; q?: string; folder?: string }
 
 export type FileRowDTO = ReturnType<typeof toFileDTO> & {
   createdAt: string
@@ -19,6 +19,8 @@ export type FileRowDTO = ReturnType<typeof toFileDTO> & {
   inChat: boolean
   client: { id: string; name: string } | null
   project: { id: string; name: string } | null
+  folder: string | null
+  restricted: boolean
 }
 
 /**
@@ -62,5 +64,49 @@ export async function listFiles(user: CurrentUser, filters: FileFilters = {}): P
     inChat: Boolean(f.channelId),
     client: f.client,
     project: f.project,
+    folder: f.folder,
+    restricted: f.restricted,
   }))
+}
+
+/** The company document vault (team only). Restricted documents only for Owners and Admins. */
+export async function listCompanyFiles(user: CurrentUser, filters: FileFilters = {}): Promise<FileRowDTO[]> {
+  if (!isTeamRole(user.role)) return []
+  const where: Prisma.StoredFileWhereInput[] = [{ company: true }]
+  if (user.role !== "OWNER" && user.role !== "ADMIN") where.push({ restricted: false })
+  if (filters.folder) where.push({ folder: filters.folder === "__none__" ? null : filters.folder })
+  if (filters.kind) where.push({ kind: filters.kind })
+  if (filters.q) where.push({ name: { contains: filters.q } })
+  const rows = await db.storedFile.findMany({
+    where: { AND: where },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    include: { uploadedBy: { select: { name: true, role: true } } },
+  })
+  return rows.map((f) => ({
+    ...toFileDTO(f),
+    createdAt: f.createdAt.toISOString(),
+    uploadedBy: f.uploadedBy?.name ?? null,
+    uploadedById: f.uploadedById,
+    fromClient: false,
+    sharedWithClient: false,
+    inChat: false,
+    client: null,
+    project: null,
+    folder: f.folder,
+    restricted: f.restricted,
+  }))
+}
+
+/** Folders in the company vault, with file counts (respecting restricted files). */
+export async function getCompanyFolders(user: CurrentUser) {
+  if (!isTeamRole(user.role)) return []
+  const rows = await db.storedFile.groupBy({
+    by: ["folder"],
+    where: { company: true, ...(user.role !== "OWNER" && user.role !== "ADMIN" ? { restricted: false } : {}) },
+    _count: { _all: true },
+  })
+  return rows
+    .map((r) => ({ name: r.folder, count: r._count._all }))
+    .sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""))
 }

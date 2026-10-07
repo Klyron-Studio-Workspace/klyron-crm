@@ -1,14 +1,17 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
-import { BuildingIcon, HashIcon, UserIcon } from "lucide-react"
+import { BuildingIcon, HashIcon, LockIcon, UserIcon } from "lucide-react"
 
+import { StartCallButton } from "@/components/calls/start-call-button"
+import { GroupPanel } from "@/components/chat/group-panel"
 import { ChannelList } from "@/components/chat/channel-list"
 import { MessageThread } from "@/components/chat/message-thread"
 import { MobileChannels } from "@/components/chat/mobile-channels"
 import { can, requirePermission } from "@/lib/auth/dal"
 import { findAccessibleChannel } from "@/lib/chat/access"
 import { getChannelList, getMessages } from "@/lib/chat/queries"
+import { db } from "@/lib/db"
 import { getAssignableMembers } from "@/lib/leads/queries"
 
 export const metadata: Metadata = { title: "Chat" }
@@ -35,13 +38,16 @@ export default async function ChatPage({ params }: PageProps<"/chat/[channelId]"
     teammates: members.filter((m) => m.id !== user.id),
     canCreateChannel: user.role === "OWNER" || user.role === "ADMIN",
   }
-  const Icon = channel.kind === "TEAM" ? HashIcon : channel.kind === "CLIENT" ? BuildingIcon : UserIcon
+  const Icon = channel.kind === "TEAM" ? HashIcon : channel.kind === "CLIENT" ? BuildingIcon : channel.kind === "GROUP" ? LockIcon : UserIcon
+  const memberCount = channel.kind === "GROUP" ? await db.channelMember.count({ where: { channelId: channel.id } }) : 0
   const subtitle =
     channel.kind === "CLIENT"
       ? "Shared with the client. They see every message and file here."
       : channel.kind === "TEAM"
         ? "Team only. Clients never see this channel."
-        : "Private conversation."
+        : channel.kind === "GROUP"
+          ? "Private group. Only its members can see it."
+          : "Private conversation."
 
   return (
     // Full-height chat inside the page container.
@@ -55,11 +61,23 @@ export default async function ChatPage({ params }: PageProps<"/chat/[channelId]"
           <Icon aria-hidden className="size-4 text-muted-foreground" />
           <h2 className="truncate text-sm font-semibold">{title}</h2>
           <span className="hidden truncate text-xs text-muted-foreground sm:inline">· {subtitle}</span>
-          {channel.kind === "CLIENT" && channel.clientId && canSeeClient && (
-            <Link href={`/clients/${channel.clientId}`} className="link ml-auto shrink-0 text-xs">
-              Client page
-            </Link>
-          )}
+          <div className="ml-auto flex shrink-0 items-center gap-3">
+            {channel.kind === "CLIENT" && channel.clientId && canSeeClient && (
+              <Link href={`/clients/${channel.clientId}`} className="link text-xs">
+                Client page
+              </Link>
+            )}
+            {channel.kind === "GROUP" && (
+              <GroupPanel
+                channelId={channel.id}
+                name={channel.name ?? "Group"}
+                memberCount={memberCount}
+                currentUserId={user.id}
+                teammates={members}
+              />
+            )}
+            {canWrite && <StartCallButton channelId={channel.id} />}
+          </div>
         </header>
         <MessageThread
           key={channel.id}

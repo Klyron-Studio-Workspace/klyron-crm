@@ -176,6 +176,7 @@ function MessageThread({
                     message={message}
                     compact={compact}
                     isOwn={message.authorId === currentUserId}
+                    currentUserId={currentUserId}
                     canModerate={canModerate}
                     showClientBadge={showClientBadge}
                   />

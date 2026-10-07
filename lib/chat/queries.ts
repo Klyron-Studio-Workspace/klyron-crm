@@ -4,6 +4,7 @@ import type { CurrentUser } from "@/lib/auth/dal"
 import { isTeamRole } from "@/lib/auth/permissions"
 import { channelScope, ensureClientChannel, ensureGeneralChannel } from "@/lib/chat/access"
 import type { ChannelSummaryDTO, MessageDTO } from "@/lib/chat/types"
+import { plainText } from "@/lib/chat/mentions"
 import { db } from "@/lib/db"
 import { toFileDTO } from "@/lib/files/access"
 import type { Prisma } from "@/lib/generated/prisma/client"
@@ -13,6 +14,7 @@ export const PAGE_SIZE = 40
 export const messageInclude = {
   files: { orderBy: { createdAt: "asc" } },
   author: { select: { role: true } },
+  call: { select: { id: true, title: true, status: true, notesStatus: true, startedAt: true, endedAt: true } },
 } satisfies Prisma.MessageInclude
 
 type MessageRow = Prisma.MessageGetPayload<{ include: typeof messageInclude }>
@@ -25,17 +27,22 @@ export function toMessageDTO(m: MessageRow): MessageDTO {
     authorId: m.authorId,
     authorName: m.authorName,
     fromClient: m.author?.role === "CLIENT",
+    fromAi: m.fromAi,
     body: deleted ? "" : m.body,
     createdAt: m.createdAt.toISOString(),
     editedAt: m.editedAt?.toISOString() ?? null,
     deleted,
     files: deleted ? [] : m.files.map(toFileDTO),
+    call: m.call
+      ? { ...m.call, startedAt: m.call.startedAt.toISOString(), endedAt: m.call.endedAt?.toISOString() ?? null }
+      : null,
   }
 }
 
-function preview(body: string, files: number) {
-  const text = body.replace(/\s+/g, " ").trim()
+function preview(body: string, files: number, voice = false) {
+  const text = plainText(body).replace(/\s+/g, " ").trim()
   if (text) return text.length > 80 ? `${text.slice(0, 80)}…` : text
+  if (voice) return "Voice message"
   return files === 1 ? "Sent a file" : `Sent ${files} files`
 }
 
@@ -63,7 +70,7 @@ export async function getChannelList(user: CurrentUser): Promise<ChannelSummaryD
         where: { deletedAt: null },
         orderBy: { createdAt: "desc" },
         take: 1,
-        include: { _count: { select: { files: true } } },
+        include: { _count: { select: { files: true } }, files: { where: { voiceNote: true }, select: { id: true }, take: 1 } },
       },
     },
   })
@@ -100,11 +107,11 @@ export async function getChannelList(user: CurrentUser): Promise<ChannelSummaryD
       title,
       clientId: c.clientId,
       unread: unreadCounts[i],
-      lastMessage: last ? { authorName: last.authorName, preview: preview(last.body, last._count.files), at: last.createdAt.toISOString() } : null,
+      lastMessage: last ? { authorName: last.authorName, preview: preview(last.body, last._count.files, last.files.length > 0), at: last.createdAt.toISOString() } : null,
     }
   })
 
-  const order = { TEAM: 0, CLIENT: 1, DIRECT: 2 }
+  const order = { TEAM: 0, GROUP: 1, CLIENT: 2, DIRECT: 3 }
   return summaries.sort(
     (a, b) =>
       order[a.kind] - order[b.kind] ||

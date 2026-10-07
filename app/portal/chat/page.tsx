@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import { MessagesSquareIcon } from "lucide-react"
 
+import { StartCallButton } from "@/components/calls/start-call-button"
 import { MessageThread } from "@/components/chat/message-thread"
 import { EmptyState } from "@/components/crm/empty-state"
 import { can, requireClientUser } from "@/lib/auth/dal"
@@ -24,6 +25,7 @@ export default async function PortalChatPage() {
       <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border">
         <MessagesSquareIcon aria-hidden className="size-4 text-muted-foreground" />
         <h1 className="text-sm font-semibold">Messages with Klyron Studio</h1>
+        {canWrite && <StartCallButton channelId={channel.id} className="ml-auto" />}
       </header>
       <MessageThread
         channelId={channel.id}

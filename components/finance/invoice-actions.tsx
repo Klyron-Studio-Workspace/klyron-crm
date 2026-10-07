@@ -222,8 +222,11 @@ function PaymentForm({ invoiceId, balance, today, onDone }: { invoiceId: string;
   const [reference, setReference] = React.useState("")
   const errors = state?.fieldErrors
 
+  // Handle each successful result once (onDone and toast change identity on re-render).
+  const handled = React.useRef<typeof state>(undefined)
   React.useEffect(() => {
-    if (state?.ok) {
+    if (state?.ok && handled.current !== state) {
+      handled.current = state
       toast.add({ type: "success", title: state.message ?? "Payment recorded." })
       onDone()
     }
@@ -251,21 +254,33 @@ function PaymentForm({ invoiceId, balance, today, onDone }: { invoiceId: string;
 
 function DeletePaymentButton({ paymentId, label }: { paymentId: string; label: string }) {
   const { run, pending } = useRunAction()
+  const [open, setOpen] = React.useState(false)
   return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      aria-label={`Remove payment ${label}`}
-      disabled={pending}
-      className="text-muted-foreground hover:text-primary-strong"
-      onClick={() => {
-        if (window.confirm(`Remove the payment of ${label}? The invoice balance goes back up.`)) {
-          run(() => deletePayment(paymentId), "Couldn't remove payment")
-        }
-      }}
-    >
-      <Trash2Icon />
-    </Button>
+    <>
+      <Button variant="ghost" size="icon-sm" aria-label={`Remove payment ${label}`} disabled={pending} className="text-muted-foreground hover:text-primary-strong" onClick={() => setOpen(true)}>
+        <Trash2Icon />
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove the payment of {label}?</DialogTitle>
+            <DialogDescription>The invoice balance goes back up. Use this to correct a mistake.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setOpen(false)
+                run(() => deletePayment(paymentId), "Couldn't remove payment")
+              }}
+            >
+              Remove payment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

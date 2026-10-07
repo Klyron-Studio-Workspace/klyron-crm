@@ -12,7 +12,13 @@ export type RequestInfo = {
  * are set by the proxy; make sure Nginx overwrites (not appends to) them.
  */
 export async function getRequestInfo(): Promise<RequestInfo> {
-  const h = await headers()
+  let h: Headers
+  try {
+    h = await headers()
+  } catch {
+    // Background jobs (scheduler) run outside a request.
+    return { ipAddress: null, userAgent: null }
+  }
   const forwarded = h.get("x-forwarded-for")?.split(",")[0]?.trim()
   const ipAddress = (forwarded || h.get("x-real-ip") || null)?.slice(0, 45) ?? null
   const userAgent = h.get("user-agent")?.slice(0, 512) ?? null

@@ -4,6 +4,7 @@ import { notFound } from "next/navigation"
 import { ArrowLeftIcon, BuildingIcon, GlobeIcon, MailIcon, PhoneIcon } from "lucide-react"
 
 import { FollowUps } from "@/components/leads/follow-ups"
+import { BillingCard } from "@/components/finance/billing-card"
 import { LeadActions } from "@/components/leads/lead-actions"
 import { LeadTimeline } from "@/components/leads/lead-timeline"
 import { NoteComposer } from "@/components/leads/note-composer"
@@ -33,13 +34,15 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
   const lead = await getLeadDetail(user, id)
   if (!lead) notFound()
 
-  const [canWrite, canConvert, stages, members, services, scope] = await Promise.all([
+  const [canWrite, canConvert, stages, members, services, scope, canFinance, canFinanceWrite] = await Promise.all([
     can(user, "leads", "WRITE"),
     can(user, "clients", "WRITE"),
     getStages(),
     getAssignableMembers(),
     getServices({ includeInactive: true }),
     leadScope(user),
+    can(user, "finance", "READ"),
+    can(user, "finance", "WRITE"),
   ])
   const title = lead.company ?? lead.name
   const leadServices = services.filter((s) => lead.serviceIds.includes(s.id))
@@ -120,6 +123,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
         </section>
 
         <div className="flex flex-col gap-6">
+          {canFinance && !lead.client && <BillingCard leadId={lead.id} canWrite={canFinanceWrite} />}
           <Card>
             <CardHeader className="border-b">
               <CardTitle className="text-base font-semibold">Follow-ups</CardTitle>

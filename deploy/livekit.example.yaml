@@ -1,0 +1,34 @@
+# LiveKit server for Klyron CRM video calls (self-hosted, no Docker).
+#
+# Install (Linux VPS):   curl -sSL https://get.livekit.io | bash
+# Run with PM2:          pm2 start "livekit-server --config /etc/livekit.yaml" --name livekit && pm2 save
+# Local dev (any OS):    livekit-server --dev      (keys: devkey / secret, ws://localhost:7880)
+#
+# Matching .env for the CRM:
+#   LIVEKIT_URL="wss://livekit.klyronstudio.com"
+#   LIVEKIT_API_KEY="<key below>"
+#   LIVEKIT_API_SECRET="<secret below>"
+#
+# Firewall: open 7881/tcp and 50000-60000/udp (media). 7880 stays local behind Nginx.
+
+port: 7880
+bind_addresses:
+  - 127.0.0.1
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: true
+keys:
+  # Generate with: livekit-server generate-keys
+  APIxxxxxxxxxxxx: replace-with-a-long-random-secret
+webhook:
+  # Lets the CRM end calls and record attendance the moment a room empties.
+  api_key: APIxxxxxxxxxxxx
+  urls:
+    - https://crm.klyronstudio.com/api/livekit/webhook
+room:
+  empty_timeout: 300
+  max_participants: 20
+logging:
+  level: info

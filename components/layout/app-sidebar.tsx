@@ -39,7 +39,12 @@ function useUnreadChat(serverCount: number, currentUserId: string, pathname: str
     if (event.type === "message" && event.message.authorId !== currentUserId && pathname !== `/chat/${event.channelId}`) {
       setState((s) => ({ ...s, extra: s.extra + 1 }))
     }
-    if (event.type === "read") router.refresh()
+    if (event.type === "read") {
+      // The refreshed server count already includes everything still unread, so drop the live extras.
+      // (Resetting only when the server count changes left a stale +1 when it stayed the same.)
+      setState((s) => ({ ...s, extra: 0 }))
+      router.refresh()
+    }
   })
   return state.base + state.extra
 }

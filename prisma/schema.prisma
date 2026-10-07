@@ -49,24 +49,28 @@ model User {
   sessions    Session[]
   resetTokens PasswordResetToken[]
 
-  leadsOwned        Lead[]          @relation("LeadOwner")
-  leadsCreated      Lead[]          @relation("LeadCreator")
+  leadsOwned        Lead[]              @relation("LeadOwner")
+  leadsCreated      Lead[]              @relation("LeadCreator")
   leadNotes         LeadNote[]
-  remindersAssigned Reminder[]      @relation("ReminderAssignee")
-  remindersCreated  Reminder[]      @relation("ReminderCreator")
-  clientsOwned      Client[]        @relation("ClientOwner")
-  projectsOwned     Project[]       @relation("ProjectOwner")
+  remindersAssigned Reminder[]          @relation("ReminderAssignee")
+  remindersCreated  Reminder[]          @relation("ReminderCreator")
+  clientsOwned      Client[]            @relation("ClientOwner")
+  projectsOwned     Project[]           @relation("ProjectOwner")
   projectMembership ProjectMember[]
-  tasksAssigned     Task[]          @relation("TaskAssignee")
-  tasksCreated      Task[]          @relation("TaskCreator")
+  tasksAssigned     Task[]              @relation("TaskAssignee")
+  tasksCreated      Task[]              @relation("TaskCreator")
   channelMembership ChannelMember[]
   messages          Message[]
   filesUploaded     StoredFile[]
   notifications     Notification[]
+  channelsCreated   Channel[]           @relation("ChannelCreator")
   proposalsCreated  Proposal[]
   invoicesCreated   Invoice[]
   paymentsRecorded  Payment[]
   expensesCreated   Expense[]
+  callsStarted      Call[]              @relation("CallStarter")
+  callsJoined       CallParticipant[]
+  transcriptLines   TranscriptSegment[]
 
   @@index([role, status])
   @@index([clientId])
@@ -488,6 +492,8 @@ enum ChannelKind {
   CLIENT
   /// Private conversation between specific team members
   DIRECT
+  /// Private named group: only its members (chosen by the creator) can see it.
+  GROUP
 }
 
 model Channel {
@@ -499,11 +505,15 @@ model Channel {
   /// Sorted participant ids for DIRECT channels, so a pair maps to one channel.
   directKey     String?     @unique @db.VarChar(255)
   lastMessageAt DateTime?
+  /// Who created a GROUP (they and Owners/Admins manage its members).
+  createdById   String?
+  createdBy     User?       @relation("ChannelCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt     DateTime    @default(now())
 
   members  ChannelMember[]
   messages Message[]
   files    StoredFile[]
+  calls    Call[]
 
   @@index([kind, lastMessageAt])
   @@map("channel")
@@ -531,9 +541,14 @@ model Message {
   author     User?     @relation(fields: [authorId], references: [id], onDelete: SetNull)
   /// Denormalized so messages stay attributed after an account is removed.
   authorName String    @db.VarChar(120)
+  /// AI replies ("@Klyron AI") have no author account.
+  fromAi     Boolean   @default(false)
   body       String    @db.Text
   editedAt   DateTime?
   deletedAt  DateTime?
+  /// Set for "started a call" messages, rendered as a call card.
+  callId     String?
+  call       Call?     @relation(fields: [callId], references: [id], onDelete: SetNull)
   createdAt  DateTime  @default(now())
 
   files StoredFile[]
@@ -564,6 +579,11 @@ model StoredFile {
   height           Int?
   /// A smaller WebP preview for images, stored next to the original.
   hasThumbnail     Boolean  @default(false)
+  /// Voice notes recorded in chat: shown as a player with a waveform.
+  voiceNote        Boolean  @default(false)
+  durationMs       Int?
+  /// ~48 bar heights (0-100) for the voice note waveform.
+  waveform         Json?
   uploadedById     String?
   uploadedBy       User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
   clientId         String?
@@ -576,12 +596,19 @@ model StoredFile {
   message          Message? @relation(fields: [messageId], references: [id], onDelete: Cascade)
   /// Visible in the client portal. Files posted in a client's chat are always shared.
   sharedWithClient Boolean  @default(false)
+  /// Company document vault (internal, not tied to a client).
+  company          Boolean  @default(false)
+  /// Optional folder in the company vault, e.g. "Contracts".
+  folder           String?  @db.VarChar(80)
+  /// Company file visible to Owners and Admins only.
+  restricted       Boolean  @default(false)
   createdAt        DateTime @default(now())
 
   @@index([clientId, createdAt])
   @@index([projectId])
   @@index([channelId])
   @@index([messageId])
+  @@index([company, folder])
   @@map("stored_file")
 }
 
@@ -800,4 +827,82 @@ model Expense {
   @@index([clientId])
   @@index([projectId])
   @@map("expense")
+}
+
+// ─── Calls (Phase 5) ────────────────────────────────────────────────────────
+// Video calls run on a self-hosted LiveKit server; the CRM issues join tokens.
+// Each participant's browser transcribes their own microphone (opt-out per person),
+// and Groq turns the transcript into meeting notes after the call.
+
+enum CallStatus {
+  ACTIVE
+  ENDED
+}
+
+enum NotesStatus {
+  NONE
+  PENDING
+  READY
+  FAILED
+}
+
+model Call {
+  id          String      @id @default(cuid())
+  title       String      @db.VarChar(160)
+  /// Every call belongs to a chat conversation, which decides who may join.
+  channelId   String
+  channel     Channel     @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  /// LiveKit room name (unguessable; never reused).
+  roomName    String      @unique @db.VarChar(64)
+  status      CallStatus  @default(ACTIVE)
+  startedById String?
+  startedBy   User?       @relation("CallStarter", fields: [startedById], references: [id], onDelete: SetNull)
+  startedAt   DateTime    @default(now())
+  endedAt     DateTime?
+  notesStatus NotesStatus @default(NONE)
+  summary     String?     @db.Text
+  /// [{ text }]
+  decisions   Json?
+  /// [{ text, owner, due }]
+  actionItems Json?
+  notesModel  String?     @db.VarChar(80)
+  notesError  String?     @db.VarChar(500)
+  notesAt     DateTime?
+
+  participants CallParticipant[]
+  segments     TranscriptSegment[]
+  messages     Message[]
+
+  @@index([channelId, startedAt])
+  @@index([status, startedAt])
+  @@index([notesStatus])
+  @@map("call")
+}
+
+model CallParticipant {
+  callId   String
+  call     Call      @relation(fields: [callId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime  @default(now())
+  leftAt   DateTime?
+
+  @@id([callId, userId])
+  @@index([userId])
+  @@map("call_participant")
+}
+
+/// One finalized phrase from a participant's browser speech recognition.
+model TranscriptSegment {
+  id          String   @id @default(cuid())
+  callId      String
+  call        Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  speakerName String   @db.VarChar(120)
+  text        String   @db.Text
+  spokenAt    DateTime @db.DateTime(3)
+
+  @@index([callId, spokenAt])
+  @@map("transcript_segment")
 }

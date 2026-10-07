@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { BuildingIcon, HashIcon, PlusIcon, UserIcon } from "lucide-react"
+import { BuildingIcon, HashIcon, LockIcon, PlusIcon, UserIcon } from "lucide-react"
 
 import { useRealtime } from "@/components/realtime/realtime-provider"
 import { Button } from "@/components/ui/button"
@@ -25,26 +25,34 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/components/ui/toast"
-import { createTeamChannel, openDirectChat } from "@/lib/actions/chat"
+import { createGroup, createTeamChannel, openDirectChat } from "@/lib/actions/chat"
 import type { ChannelKindKey, ChannelSummaryDTO } from "@/lib/chat/types"
+import { plainText } from "@/lib/chat/mentions"
 import { formatRelative } from "@/lib/format"
 import type { PersonDTO } from "@/lib/leads/types"
 import { cn } from "@/lib/utils"
 
-const sectionLabels: Record<ChannelKindKey, string> = { TEAM: "Channels", CLIENT: "Clients", DIRECT: "Direct messages" }
-const icons = { TEAM: HashIcon, CLIENT: BuildingIcon, DIRECT: UserIcon }
+const sectionLabels: Record<ChannelKindKey, string> = { TEAM: "Channels", GROUP: "Private groups", CLIENT: "Clients", DIRECT: "Direct messages" }
+const icons = { TEAM: HashIcon, GROUP: LockIcon, CLIENT: BuildingIcon, DIRECT: UserIcon }
+
+const dialogCopy = {
+  direct: { title: "Direct message", description: "Private to the people you choose.", submit: "Open conversation" },
+  group: { title: "New private group", description: "Only the people you add can see it. You can add or remove people later.", submit: "Create group" },
+  channel: { title: "New team channel", description: "Visible to the whole team, e.g. #design or #dev.", submit: "Create channel" },
+}
 
 function NewConversation({ teammates, canCreateChannel }: { teammates: PersonDTO[]; canCreateChannel: boolean }) {
   const router = useRouter()
   const toast = useToast()
-  const [mode, setMode] = React.useState<"direct" | "channel" | null>(null)
+  const [mode, setMode] = React.useState<"direct" | "group" | "channel" | null>(null)
   const [selected, setSelected] = React.useState<string[]>([])
   const [name, setName] = React.useState("")
   const [pending, startTransition] = React.useTransition()
 
   function submit() {
     startTransition(async () => {
-      const result = mode === "direct" ? await openDirectChat(selected) : await createTeamChannel(name)
+      const result =
+        mode === "direct" ? await openDirectChat(selected) : mode === "group" ? await createGroup({ name, memberIds: selected }) : await createTeamChannel(name)
       if (!result.ok) {
         toast.add({ type: "error", title: "Couldn't start conversation", description: result.error })
         return
@@ -66,6 +74,9 @@ function NewConversation({ teammates, canCreateChannel }: { teammates: PersonDTO
           <DropdownMenuItem onClick={() => setMode("direct")}>
             <UserIcon /> Direct message
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setMode("group")}>
+            <LockIcon /> New private group
+          </DropdownMenuItem>
           {canCreateChannel && (
             <DropdownMenuItem onClick={() => setMode("channel")}>
               <HashIcon /> New team channel
@@ -77,14 +88,18 @@ function NewConversation({ teammates, canCreateChannel }: { teammates: PersonDTO
       <Dialog open={mode !== null} onOpenChange={(open) => !open && setMode(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{mode === "direct" ? "Direct message" : "New team channel"}</DialogTitle>
-            <DialogDescription>
-              {mode === "direct" ? "Private to the people you choose." : "Visible to the whole team, e.g. #design or #dev."}
-            </DialogDescription>
+            <DialogTitle>{mode && dialogCopy[mode].title}</DialogTitle>
+            <DialogDescription>{mode && dialogCopy[mode].description}</DialogDescription>
           </DialogHeader>
-          {mode === "direct" ? (
+          {mode === "group" && (
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="group-name">Group name</Label>
+              <Input id="group-name" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} placeholder="Launch squad" />
+            </div>
+          )}
+          {mode === "direct" || mode === "group" ? (
             <fieldset className="flex max-h-72 flex-col gap-1 overflow-y-auto">
-              <legend className="sr-only">Teammates</legend>
+              <legend className={mode === "group" ? "mb-1 text-sm font-medium" : "sr-only"}>{mode === "group" ? `Members (${selected.length} selected)` : "Teammates"}</legend>
               {teammates.length === 0 && <p className="text-sm text-muted-foreground">No other team members yet.</p>}
               {teammates.map((t) => (
                 <label key={t.id} className="flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-surface">
@@ -106,8 +121,11 @@ function NewConversation({ teammates, canCreateChannel }: { teammates: PersonDTO
           )}
           <DialogFooter>
             <DialogClose render={<Button variant="secondary" />}>Cancel</DialogClose>
-            <Button disabled={pending || (mode === "direct" ? selected.length === 0 : !name.trim())} onClick={submit}>
-              {mode === "direct" ? "Open conversation" : "Create channel"}
+            <Button
+              disabled={pending || (mode === "direct" ? selected.length === 0 : mode === "group" ? selected.length === 0 || !name.trim() : !name.trim())}
+              onClick={submit}
+            >
+              {mode && dialogCopy[mode].submit}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -144,7 +162,13 @@ function ChannelList({ channels: initial, activeId, currentUserId, teammates, ca
                 unread: c.id === activeId || event.message.authorId === currentUserId ? 0 : c.unread + 1,
                 lastMessage: {
                   authorName: event.message.authorName,
-                  preview: event.message.body.slice(0, 80) || (event.message.files.length === 1 ? "Sent a file" : `Sent ${event.message.files.length} files`),
+                  preview:
+                    plainText(event.message.body).slice(0, 80) ||
+                    (event.message.files.some((f) => f.voiceNote)
+                      ? "Voice message"
+                      : event.message.files.length === 1
+                        ? "Sent a file"
+                        : `Sent ${event.message.files.length} files`),
                   at: event.message.createdAt,
                 },
               }
@@ -154,7 +178,7 @@ function ChannelList({ channels: initial, activeId, currentUserId, teammates, ca
     if (event.type === "read") setChannels((prev) => prev.map((c) => (c.id === event.channelId ? { ...c, unread: 0 } : c)))
   })
 
-  const sections = (["TEAM", "CLIENT", "DIRECT"] as const)
+  const sections = (["TEAM", "GROUP", "CLIENT", "DIRECT"] as const)
     .map((kind) => ({ kind, items: channels.filter((c) => c.kind === kind) }))
     .filter((s) => s.items.length > 0 || s.kind === "DIRECT")
 

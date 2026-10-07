@@ -16,6 +16,9 @@ export function toFileDTO(file: StoredFile): FileDTO {
     width: file.width,
     height: file.height,
     hasThumbnail: file.hasThumbnail,
+    voiceNote: file.voiceNote,
+    durationMs: file.durationMs,
+    waveform: Array.isArray(file.waveform) ? (file.waveform as unknown[]).filter((v): v is number => typeof v === "number").slice(0, 96) : null,
   }
 }
 
@@ -41,12 +44,20 @@ export async function canReadFile(user: CurrentUser, file: StoredFile) {
     return Boolean(file.messageId)
   }
 
+  if (file.company) return canSeeCompanyFile(user, file)
+
   if (file.clientId) {
     if (!(await can(user, "files", "READ"))) return false
     if (isTeamRole(user.role)) return teamCanSeeClient(user, file.clientId)
     return user.clientId === file.clientId && file.sharedWithClient
   }
   return false
+}
+
+/** Company vault: the team with Files access; restricted files only for Owners and Admins. */
+export async function canSeeCompanyFile(user: CurrentUser, file: Pick<StoredFile, "restricted">) {
+  if (!isTeamRole(user.role) || !(await can(user, "files", "READ"))) return false
+  return !file.restricted || user.role === "OWNER" || user.role === "ADMIN"
 }
 
 /** Uploaders can delete their own files; Owners and Admins can delete any file they can see. */

@@ -7,6 +7,9 @@ import { logEvent, userActor } from "@/lib/audit"
 import { can, requireUser, type CurrentUser } from "@/lib/auth/dal"
 import { isTeamRole } from "@/lib/auth/permissions"
 import { channelAudience, directKey, findAccessibleChannel } from "@/lib/chat/access"
+import { replyWithAi } from "@/lib/chat/ai"
+import { getMentionOptions, validateMentions } from "@/lib/chat/mention-server"
+import { plainText, type MentionOption } from "@/lib/chat/mentions"
 import { getMessages, messageInclude, toMessageDTO } from "@/lib/chat/queries"
 import { db } from "@/lib/db"
 import { deleteStored } from "@/lib/files/storage"
@@ -45,6 +48,7 @@ export async function sendMessage(input: z.input<typeof sendSchema>): Promise<Re
 
   const channel = await findAccessibleChannel(user, parsed.data.channelId)
   if (!channel) return { ok: false, error: "Conversation not found." }
+  const mentions = await validateMentions(user, channel, body)
 
   // Only the sender's own pending uploads for this channel can be attached.
   if (fileIds.length) {
@@ -57,7 +61,7 @@ export async function sendMessage(input: z.input<typeof sendSchema>): Promise<Re
   const now = new Date()
   const created = await db.$transaction(async (tx) => {
     const message = await tx.message.create({
-      data: { channelId: channel.id, authorId: user.id, authorName: user.name, body },
+      data: { channelId: channel.id, authorId: user.id, authorName: user.name, body: mentions.body },
     })
     if (fileIds.length) await tx.storedFile.updateMany({ where: { id: { in: fileIds } }, data: { messageId: message.id } })
     await tx.channel.update({ where: { id: channel.id }, data: { lastMessageAt: now } })
@@ -72,8 +76,38 @@ export async function sendMessage(input: z.input<typeof sendSchema>): Promise<Re
   const dto = toMessageDTO(created)
   const audience = await channelAudience(channel)
   publish(audience, { type: "message", channelId: channel.id, message: dto })
-  await notifyAboutMessage(user, channel, audience, body, fileIds.length)
+  await notifyMentioned(user, channel, mentions.userIds, mentions.body)
+  await notifyAboutMessage(user, channel, audience, plainText(mentions.body), fileIds.length, new Set(mentions.userIds))
+  if (mentions.askAi) void replyWithAi(channel.id, { id: user.id, name: user.name }, [...mentions.fileIds, ...fileIds])
   return { ok: true }
+}
+
+/** "@Sara" always notifies Sara (even in busy team channels), by email too when she's away. */
+async function notifyMentioned(author: CurrentUser, channel: Channel & { client: { name: string } | null }, userIds: string[], body: string) {
+  if (userIds.length === 0) return
+  const where =
+    channel.kind === "CLIENT" ? (channel.client?.name ?? "a client chat") : channel.kind === "DIRECT" ? "a direct message" : `${channel.kind === "TEAM" ? "#" : ""}${channel.name ?? "a conversation"}`
+  const text = plainText(body)
+  const preview = text.length > 160 ? `${text.slice(0, 160)}…` : text
+  const rows = await db.user.findMany({ where: { id: { in: userIds } }, select: { id: true, role: true } })
+  for (const row of rows) {
+    await notify({
+      userIds: [row.id],
+      type: "chat.mention",
+      title: `${author.name} mentioned you in ${where}`,
+      body: preview,
+      link: chatLink(row, channel.id),
+      email: "if-offline",
+    })
+  }
+}
+
+/** Options for the composer's "@" menu. */
+export async function getMentionMenu(channelId: string): Promise<MentionOption[]> {
+  const user = await requireUser()
+  const channel = await findAccessibleChannel(user, channelId)
+  if (!channel) return []
+  return getMentionOptions(user, channel)
 }
 
 /**
@@ -85,16 +119,18 @@ async function notifyAboutMessage(
   channel: Channel & { client: { name: string } | null },
   audience: string[],
   body: string,
-  fileCount: number
+  fileCount: number,
+  /** Already notified as a mention. */
+  skip: Set<string> = new Set()
 ) {
   if (channel.kind === "TEAM") return
   const preview = body ? (body.length > 140 ? `${body.slice(0, 140)}…` : body) : fileCount === 1 ? "Sent a file" : `Sent ${fileCount} files`
 
   let recipients: string[]
   let title: string
-  if (channel.kind === "DIRECT") {
+  if (channel.kind === "DIRECT" || channel.kind === "GROUP") {
     recipients = audience
-    title = `${author.name} sent you a message`
+    title = channel.kind === "GROUP" ? `${author.name} in ${channel.name ?? "a group"}` : `${author.name} sent you a message`
   } else if (!isTeamRole(author.role)) {
     // From the client: the people who work with them (or Owners/Admins if nobody does).
     const related = await db.user.findMany({
@@ -123,7 +159,7 @@ async function notifyAboutMessage(
     title = `New message from Klyron Studio`
   }
 
-  const offline = recipients.filter((id) => id !== author.id && !isOnline(id))
+  const offline = recipients.filter((id) => id !== author.id && !skip.has(id) && !isOnline(id))
   if (offline.length === 0) return
   const pending = await db.notification.findMany({
     where: { userId: { in: offline }, type: "chat.message", readAt: null, link: { in: [`/chat/${channel.id}`, "/portal/chat"] } },
@@ -147,7 +183,8 @@ export async function editMessage(messageId: string, body: string): Promise<Resu
   const channel = await findAccessibleChannel(user, message.channelId)
   if (!channel) return { ok: false, error: "Conversation not found." }
 
-  const updated = await db.message.update({ where: { id: messageId }, data: { body: text, editedAt: new Date() }, include: messageInclude })
+  const { body: cleaned } = await validateMentions(user, channel, text)
+  const updated = await db.message.update({ where: { id: messageId }, data: { body: cleaned, editedAt: new Date() }, include: messageInclude })
   publish(await channelAudience(channel), { type: "message.update", channelId: channel.id, message: toMessageDTO(updated) })
   return { ok: true }
 }
@@ -257,4 +294,152 @@ export async function createTeamChannel(name: string): Promise<Result<{ channelI
   await logEvent({ actor: userActor(user), action: "chat.channel.create", entity: { type: "channel", id: channel.id }, metadata: { name: parsed.data } })
   revalidatePath("/chat", "layout")
   return { ok: true, channelId: channel.id }
+}
+
+// ─── Private groups ─────────────────────────────────────────────────────────
+
+const MAX_GROUP_MEMBERS = 50
+
+async function activeTeamIds(ids: string[]) {
+  const rows = await db.user.findMany({
+    where: { id: { in: ids }, status: "ACTIVE", role: { in: ["OWNER", "ADMIN", "MEMBER"] } },
+    select: { id: true },
+  })
+  return rows.map((r) => r.id)
+}
+
+/** A group the user belongs to, plus whether they may manage it (creator, Owner or Admin). */
+async function loadGroup(user: CurrentUser, channelId: string) {
+  const channel = await findAccessibleChannel(user, channelId)
+  if (!channel || channel.kind !== "GROUP") return null
+  const canManage = channel.createdById === user.id || user.role === "OWNER" || user.role === "ADMIN"
+  return { channel, canManage }
+}
+
+/** Posts a small line ("Sara added Ali") so membership changes are visible in the thread. */
+async function postGroupNotice(channel: Channel, author: CurrentUser, body: string, extraAudience: string[] = []) {
+  const message = await db.message.create({
+    data: { channelId: channel.id, authorId: author.id, authorName: author.name, body },
+    include: messageInclude,
+  })
+  await db.channel.update({ where: { id: channel.id }, data: { lastMessageAt: message.createdAt } })
+  const audience = [...new Set([...(await channelAudience(channel)), ...extraAudience])]
+  publish(audience, { type: "message", channelId: channel.id, message: toMessageDTO(message) })
+}
+
+export async function createGroup(input: { name: string; memberIds: string[] }): Promise<Result<{ channelId: string }>> {
+  const user = await requireChatWriter()
+  if (!isTeamRole(user.role)) return { ok: false, error: "Groups are for the team." }
+  const parsed = channelNameSchema.safeParse(input.name)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid name." }
+  const wanted = [...new Set(input.memberIds)].filter((id) => id !== user.id)
+  if (wanted.length === 0) return { ok: false, error: "Add at least one other person." }
+  if (wanted.length + 1 > MAX_GROUP_MEMBERS) return { ok: false, error: `Groups can have up to ${MAX_GROUP_MEMBERS} people.` }
+  const valid = await activeTeamIds(wanted)
+  if (valid.length !== wanted.length) return { ok: false, error: "Choose active team members." }
+
+  const channel = await db.channel.create({
+    data: {
+      kind: "GROUP",
+      name: parsed.data,
+      createdById: user.id,
+      members: { create: [user.id, ...valid].map((userId) => ({ userId })) },
+    },
+  })
+  await postGroupNotice(channel, user, `created the group “${parsed.data}”`)
+  await notify({ userIds: valid, type: "chat.group.added", title: `${user.name} added you to ${parsed.data}`, link: `/chat/${channel.id}`, email: "if-offline" })
+  await logEvent({ actor: userActor(user), action: "chat.group.create", entity: { type: "channel", id: channel.id }, metadata: { name: parsed.data, members: valid.length + 1 } })
+  revalidatePath("/chat", "layout")
+  return { ok: true, channelId: channel.id }
+}
+
+export async function renameGroup(channelId: string, name: string): Promise<Result> {
+  const user = await requireChatWriter()
+  const group = await loadGroup(user, channelId)
+  if (!group) return { ok: false, error: "Group not found." }
+  if (!group.canManage) return { ok: false, error: "Only the group's creator or an admin can rename it." }
+  const parsed = channelNameSchema.safeParse(name)
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Invalid name." }
+  if (parsed.data === group.channel.name) return { ok: true }
+  await db.channel.update({ where: { id: channelId }, data: { name: parsed.data } })
+  await postGroupNotice(group.channel, user, `renamed the group to “${parsed.data}”`)
+  revalidatePath("/chat", "layout")
+  return { ok: true }
+}
+
+export async function addGroupMembers(channelId: string, userIds: string[]): Promise<Result> {
+  const user = await requireChatWriter()
+  const group = await loadGroup(user, channelId)
+  if (!group) return { ok: false, error: "Group not found." }
+  if (!group.canManage) return { ok: false, error: "Only the group's creator or an admin can add people." }
+  const current = await db.channelMember.findMany({ where: { channelId }, select: { userId: true } })
+  const existing = new Set(current.map((m) => m.userId))
+  const wanted = [...new Set(userIds)].filter((id) => !existing.has(id))
+  if (wanted.length === 0) return { ok: false, error: "They're already in the group." }
+  if (existing.size + wanted.length > MAX_GROUP_MEMBERS) return { ok: false, error: `Groups can have up to ${MAX_GROUP_MEMBERS} people.` }
+  const valid = await activeTeamIds(wanted)
+  if (valid.length !== wanted.length) return { ok: false, error: "Choose active team members." }
+
+  await db.channelMember.createMany({ data: valid.map((userId) => ({ channelId, userId })), skipDuplicates: true })
+  const names = (await db.user.findMany({ where: { id: { in: valid } }, select: { name: true } })).map((u) => u.name)
+  await postGroupNotice(group.channel, user, `added ${names.join(", ")}`)
+  await notify({ userIds: valid, type: "chat.group.added", title: `${user.name} added you to ${group.channel.name ?? "a group"}`, link: `/chat/${channelId}`, email: "if-offline" })
+  await logEvent({ actor: userActor(user), action: "chat.group.members.add", entity: { type: "channel", id: channelId }, metadata: { name: group.channel.name, added: names } })
+  revalidatePath("/chat", "layout")
+  return { ok: true }
+}
+
+/** Removes someone (managers only), or yourself (anyone can leave). */
+export async function removeGroupMember(channelId: string, userId: string): Promise<Result> {
+  const user = await requireChatWriter()
+  const group = await loadGroup(user, channelId)
+  if (!group) return { ok: false, error: "Group not found." }
+  const leaving = userId === user.id
+  if (!leaving && !group.canManage) return { ok: false, error: "Only the group's creator or an admin can remove people." }
+  const member = await db.channelMember.findUnique({ where: { channelId_userId: { channelId, userId } }, include: { user: { select: { name: true } } } })
+  if (!member) return { ok: false, error: "They're not in this group." }
+  const count = await db.channelMember.count({ where: { channelId } })
+  if (count <= 1) return { ok: false, error: "You're the last member. Delete the group instead." }
+
+  await db.channelMember.delete({ where: { channelId_userId: { channelId, userId } } })
+  // The removed person still gets this last update, so their list drops the group live.
+  await postGroupNotice(group.channel, user, leaving ? "left the group" : `removed ${member.user.name}`, [userId])
+  await logEvent({
+    actor: userActor(user),
+    action: leaving ? "chat.group.leave" : "chat.group.members.remove",
+    entity: { type: "channel", id: channelId },
+    metadata: { name: group.channel.name, member: member.user.name },
+  })
+  revalidatePath("/chat", "layout")
+  return { ok: true }
+}
+
+export async function deleteGroup(channelId: string): Promise<Result> {
+  const user = await requireChatWriter()
+  const group = await loadGroup(user, channelId)
+  if (!group) return { ok: false, error: "Group not found." }
+  if (!group.canManage) return { ok: false, error: "Only the group's creator or an admin can delete it." }
+  const files = await db.storedFile.findMany({ where: { channelId }, select: { storageKey: true, hasThumbnail: true } })
+  await db.channel.delete({ where: { id: channelId } })
+  await Promise.all(files.map((f) => deleteStored(f.storageKey, f.hasThumbnail)))
+  await logEvent({ actor: userActor(user), action: "chat.group.delete", entity: { type: "channel", id: channelId }, metadata: { name: group.channel.name } })
+  revalidatePath("/chat", "layout")
+  return { ok: true }
+}
+
+/** Members and whether the viewer can manage them, for the group panel. */
+export async function getGroupMembers(channelId: string) {
+  const user = await requireUser()
+  const group = await loadGroup(user, channelId)
+  if (!group) return null
+  const members = await db.channelMember.findMany({
+    where: { channelId },
+    include: { user: { select: { id: true, name: true, title: true } } },
+    orderBy: { user: { name: "asc" } },
+  })
+  return {
+    canManage: group.canManage,
+    createdById: group.channel.createdById,
+    members: members.map((m) => ({ id: m.user.id, name: m.user.name, title: m.user.title })),
+  }
 }

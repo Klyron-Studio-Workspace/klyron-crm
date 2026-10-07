@@ -16,8 +16,11 @@ import { computeTotals, fromCents, toCents } from "@/lib/finance/math"
 import { todayKey } from "@/lib/finance/queries"
 import { parseDateOnly } from "@/lib/format"
 import type { Prisma } from "@/lib/generated/prisma/client"
-import { formatMoney } from "@/lib/money"
 import { notify } from "@/lib/notifications"
+
+/** Exact amounts (cents included) for messages about balances. */
+const formatMoney = (value: number, currency: string) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
 
 type Result = { ok: true; message?: string } | { ok: false; error: string }
 
@@ -38,7 +41,13 @@ const money = (value: number) => value.toFixed(2)
 
 const ymd = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date.")
 const optionalYmd = z.union([z.literal(""), ymd]).transform((v) => v || null)
-const optionalText = (max: number) => z.string().trim().max(max).transform((v) => v || null)
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .optional()
+    .transform((v) => v || null)
 const amount = (label: string, max = 1e10) =>
   z.coerce.number({ error: `Enter ${label}.` }).min(0, `${label[0].toUpperCase()}${label.slice(1)} can't be negative.`).max(max)
 

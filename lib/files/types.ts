@@ -11,6 +11,11 @@ export type FileDTO = {
   width: number | null
   height: number | null
   hasThumbnail: boolean
+  /** Recorded in chat: shown as a voice player. */
+  voiceNote: boolean
+  durationMs: number | null
+  /** Bar heights 0-100 for the voice player. */
+  waveform: number[] | null
 }
 
 export function fileUrl(id: string, options: { thumb?: boolean; download?: boolean } = {}) {

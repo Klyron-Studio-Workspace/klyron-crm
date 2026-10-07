@@ -5,7 +5,7 @@ import { Readable } from "node:stream"
 import { logEvent, userActor } from "@/lib/audit"
 import { getCurrentUser } from "@/lib/auth/dal"
 import { db } from "@/lib/db"
-import { canDeleteFile, canReadFile } from "@/lib/files/access"
+import { canDeleteFile, canReadFile, toFileDTO } from "@/lib/files/access"
 import { deleteStored, isInlineSafe, pathFor, thumbnailKey } from "@/lib/files/storage"
 
 /** RFC 6266 filename for Content-Disposition, safe for any characters. */
@@ -16,7 +16,7 @@ function disposition(type: "inline" | "attachment", name: string) {
 
 /**
  * Download or preview a file (with Range support for video seeking).
- * ?thumb=1 serves the image preview, ?download=1 forces a download.
+ * ?thumb=1 serves the image preview, ?download=1 forces a download, ?meta=1 returns details as JSON.
  * With NGINX_ACCEL_REDIRECT=1, Nginx streams the bytes after this auth check.
  */
 export async function GET(request: Request, { params }: RouteContext<"/api/files/[id]">) {
@@ -27,6 +27,8 @@ export async function GET(request: Request, { params }: RouteContext<"/api/files
   if (!file || !(await canReadFile(user, file))) return new Response("Not found", { status: 404 })
 
   const url = new URL(request.url)
+  // ?meta=1: just the file details (for previews of files tagged in chat).
+  if (url.searchParams.get("meta") === "1") return Response.json(toFileDTO(file), { headers: { "Cache-Control": "private, no-store" } })
   const wantThumb = url.searchParams.get("thumb") === "1" && file.hasThumbnail
   const key = wantThumb ? thumbnailKey(file.storageKey) : file.storageKey
   const mimeType = wantThumb ? "image/webp" : file.mimeType
@@ -82,6 +84,9 @@ export async function DELETE(_request: Request, { params }: RouteContext<"/api/f
 
   await db.storedFile.delete({ where: { id } })
   await deleteStored(file.storageKey, file.hasThumbnail)
+  if (file.company) {
+    await logEvent({ actor: userActor(user), action: "file.delete", entity: { type: "file", id: file.id }, metadata: { name: file.name, company: true, folder: file.folder } })
+  }
   if (file.clientId) {
     await logEvent({
       actor: userActor(user),

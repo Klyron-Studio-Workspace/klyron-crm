@@ -5,7 +5,6 @@ import { getAccess } from "@/lib/auth/dal"
 import { db } from "@/lib/db"
 import { formatDateOnly, toDateOnly } from "@/lib/format"
 import { sendMail } from "@/lib/mail"
-import { formatMoney } from "@/lib/money"
 import { appUrl } from "@/lib/request"
 
 /** Active team members whose role can edit Finance (Owner and Admin by default). */
@@ -33,6 +32,10 @@ export async function clientRecipients(clientId: string) {
   if (!client) return []
   return [...new Set([client.email, ...client.accounts.map((a) => a.email)].filter((e): e is string => Boolean(e)).map((e) => e.toLowerCase()))]
 }
+
+/** Emails show exact amounts, cents included. */
+const formatMoney = (value: number, currency: string) =>
+  new Intl.NumberFormat("en-US", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value)
 
 async function studioName() {
   const org = await db.orgSettings.findUnique({ where: { id: "org" }, select: { name: true } })

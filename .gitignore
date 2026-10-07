@@ -46,3 +46,6 @@ next-env.d.ts
 
 # uploads (local file storage)
 /storage/
+
+# LiveKit dev server binary (downloaded by npm run dev)
+/.livekit/

@@ -14,6 +14,8 @@ import {
   writeUpload,
 } from "@/lib/files/storage"
 
+const MAX_VOICE_MS = 15 * 60_000
+
 function json(status: number, body: unknown) {
   return Response.json(body, { status })
 }
@@ -43,8 +45,19 @@ export async function POST(request: Request) {
   let projectId: string | null = null
   let sharedWithClient = false
 
+  let company = false
+  let folder: string | null = null
+  let restricted = false
+
   const channelParam = url.searchParams.get("channelId")
-  if (channelParam) {
+  if (url.searchParams.get("company") === "1") {
+    // Company vault: team only, never tied to a client.
+    if (!isTeamRole(user.role) || !(await can(user, "files", "WRITE"))) return json(403, { error: "You can't upload company documents." })
+    company = true
+    folder = (url.searchParams.get("folder") ?? "").replace(/[\/\\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || null
+    restricted = url.searchParams.get("restricted") === "1"
+    if (restricted && user.role !== "OWNER" && user.role !== "ADMIN") return json(403, { error: "Only Owners and Admins can upload restricted documents." })
+  } else if (channelParam) {
     const channel = await findAccessibleChannel(user, channelParam)
     if (!channel || !(await can(user, "chat", "WRITE"))) return json(403, { error: "You can't post in this conversation." })
     channelId = channel.id
@@ -69,6 +82,21 @@ export async function POST(request: Request) {
       if (!project) return json(400, { error: "That project doesn't belong to this client." })
       projectId = project.id
     }
+  }
+
+  // Voice notes (chat only): audio with a duration and waveform for the player.
+  const isVoice = url.searchParams.get("voice") === "1"
+  let durationMs: number | null = null
+  let waveform: number[] | null = null
+  if (isVoice) {
+    if (!channelId) return json(400, { error: "Voice notes can only be sent in chat." })
+    if (!mimeType.startsWith("audio/")) return json(400, { error: "Voice notes must be audio." })
+    durationMs = Math.round(Number(url.searchParams.get("durationMs")))
+    if (!Number.isFinite(durationMs) || durationMs < 300 || durationMs > MAX_VOICE_MS) return json(400, { error: "Voice notes can be up to 15 minutes." })
+    waveform = (url.searchParams.get("waveform") ?? "")
+      .split(",")
+      .slice(0, 96)
+      .map((v) => Math.max(0, Math.min(100, Math.round(Number(v)) || 0)))
   }
 
   // ── Store ──
@@ -99,14 +127,23 @@ export async function POST(request: Request) {
       width: image?.width ?? null,
       height: image?.height ?? null,
       hasThumbnail: Boolean(image),
+      voiceNote: isVoice,
+      durationMs,
+      waveform: waveform ?? undefined,
       uploadedById: user.id,
       clientId,
       projectId,
       channelId,
       sharedWithClient,
+      company,
+      folder,
+      restricted,
     },
   })
 
+  if (company) {
+    await logEvent({ actor: userActor(user), action: "file.upload", entity: { type: "file", id: file.id }, metadata: { name, size, company: true, folder, restricted } })
+  }
   // Chat attachments are logged when the message is sent; Files-area uploads now.
   if (!channelId && clientId) {
     await logEvent({

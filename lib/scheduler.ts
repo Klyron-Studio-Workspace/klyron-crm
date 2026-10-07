@@ -2,6 +2,11 @@ import "server-only"
 
 import { db } from "@/lib/db"
 import { deleteStored } from "@/lib/files/storage"
+import { logEvent, systemActor } from "@/lib/audit"
+import { endAbandonedCalls, runPendingNotes } from "@/lib/calls/lifecycle"
+import { emailInvoice, financeAudience } from "@/lib/finance/delivery"
+import { dayKey } from "@/lib/format"
+import { formatMoney } from "@/lib/money"
 import { notify } from "@/lib/notifications"
 
 const MINUTE = 60_000
@@ -41,6 +46,46 @@ export async function cleanOrphanUploads() {
   }
 }
 
+const WEEK_MS = 7 * 24 * 60 * MINUTE
+const MAX_AUTO_REMINDERS = 3
+
+/** Overdue invoices: email the client when overdue, then weekly (max 3). The team is told on the first one. */
+export async function runPaymentReminders() {
+  const org = await db.orgSettings.findUnique({ where: { id: "org" }, select: { autoPaymentReminders: true } })
+  if (org && !org.autoPaymentReminders) return
+  const today = new Date(`${dayKey(new Date())}T00:00:00.000Z`)
+  const due = await db.invoice.findMany({
+    where: {
+      status: "SENT",
+      dueDate: { lt: today },
+      reminderCount: { lt: MAX_AUTO_REMINDERS },
+      OR: [{ lastReminderAt: null }, { lastReminderAt: { lt: new Date(Date.now() - WEEK_MS) } }],
+    },
+    take: 50,
+    include: { client: { select: { name: true } } },
+  })
+  for (const invoice of due) {
+    // Claim first so an overlapping run can't send twice.
+    const claimed = await db.invoice.updateMany({
+      where: { id: invoice.id, reminderCount: invoice.reminderCount },
+      data: { lastReminderAt: new Date(), reminderCount: { increment: 1 } },
+    })
+    if (claimed.count === 0) continue
+    const { recipients } = await emailInvoice(invoice.id, "reminder")
+    await logEvent({ actor: systemActor, action: "invoice.reminder.auto", entity: { type: "invoice", id: invoice.id }, metadata: { number: invoice.number, recipients } })
+    if (invoice.reminderCount === 0) {
+      await notify({
+        userIds: await financeAudience(),
+        type: "invoice.overdue",
+        title: `${invoice.number} is overdue`,
+        body: `${invoice.client.name} · ${formatMoney(Number(invoice.total) - Number(invoice.amountPaid), invoice.currency)} outstanding`,
+        link: `/finance/invoices/${invoice.id}`,
+        email: "if-offline",
+      })
+    }
+  }
+}
+
 const globalForScheduler = globalThis as unknown as { schedulerStarted?: boolean }
 
 /** Runs inside the single app process (see instrumentation.ts). */
@@ -52,6 +97,10 @@ export function startScheduler() {
     task().catch((error) => console.error(`[scheduler] ${name} failed:`, error instanceof Error ? error.message : error))
 
   setInterval(safely("reminders", runDueReminders), MINUTE).unref()
+  setInterval(safely("empty calls", endAbandonedCalls), MINUTE).unref()
+  setInterval(safely("meeting notes", runPendingNotes), MINUTE).unref()
   setInterval(safely("orphan uploads", cleanOrphanUploads), 60 * MINUTE).unref()
+  setInterval(safely("payment reminders", runPaymentReminders), 60 * MINUTE).unref()
+  setTimeout(safely("payment reminders", runPaymentReminders), 30_000).unref()
   setTimeout(safely("reminders", runDueReminders), 5_000).unref()
 }
