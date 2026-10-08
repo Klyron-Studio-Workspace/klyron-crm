@@ -71,6 +71,10 @@ model User {
   callsStarted      Call[]              @relation("CallStarter")
   callsJoined       CallParticipant[]
   transcriptLines   TranscriptSegment[]
+  whiteboardsCreated Whiteboard[]          @relation("WhiteboardCreator")
+  whiteboardVersions WhiteboardVersion[]   @relation("WhiteboardVersionCreator")
+  whiteboardMemberships WhiteboardMember[]
+  whiteboardComments WhiteboardComment[]
 
   @@index([role, status])
   @@index([clientId])
@@ -190,6 +194,9 @@ model OrgSettings {
   proposalSeq            Int      @default(0)
   /// Email clients about overdue invoices (weekly, up to 3 times).
   autoPaymentReminders   Boolean  @default(true)
+  /// SHA-256 only; the MCP bearer token is shown once when generated.
+  mcpTokenHash           String?  @db.Char(64)
+  mcpTokenCreatedAt      DateTime?
   updatedAt              DateTime @updatedAt
 
   @@map("org_settings")
@@ -905,4 +912,70 @@ model TranscriptSegment {
 
   @@index([callId, spokenAt])
   @@map("transcript_segment")
+}
+
+// ─── Whiteboards (Phase 8) ────────────────────────────────────────────────
+
+model Whiteboard {
+  id          String   @id @default(cuid())
+  name        String   @db.VarChar(120)
+  /// Versioned canvas document: { version, nodes }.
+  content     Json
+  createdById String?
+  createdBy   User?    @relation("WhiteboardCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  revision    Int      @default(0)
+  favorite    Boolean  @default(false)
+  lastOpenedAt DateTime?
+
+  versions WhiteboardVersion[]
+  members  WhiteboardMember[]
+  comments WhiteboardComment[]
+
+  @@index([updatedAt])
+  @@map("whiteboard")
+}
+
+model WhiteboardMember {
+  boardId String
+  board   Whiteboard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  access  Access     @default(READ)
+
+  @@id([boardId, userId])
+  @@index([userId])
+  @@map("whiteboard_member")
+}
+
+model WhiteboardComment {
+  id         String     @id @default(cuid())
+  boardId    String
+  board      Whiteboard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  authorId   String?
+  author     User?      @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  body       String     @db.Text
+  x          Float
+  y          Float
+  resolvedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([boardId, createdAt])
+  @@map("whiteboard_comment")
+}
+
+model WhiteboardVersion {
+  id          String     @id @default(cuid())
+  boardId     String
+  board       Whiteboard @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  revision    Int
+  content     Json
+  createdById String?
+  createdBy   User?      @relation("WhiteboardVersionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt   DateTime   @default(now())
+
+  @@unique([boardId, revision])
+  @@index([boardId, createdAt])
+  @@map("whiteboard_version")
 }

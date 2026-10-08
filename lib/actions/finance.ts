@@ -5,10 +5,12 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 
 import { echo, fieldErrorsFrom, type FormState } from "@/lib/actions/state"
+import { allowAiRequest } from "@/lib/ai/rate-limit"
 import { logEvent, systemActor, userActor } from "@/lib/audit"
 import { can, getCurrentUser, requireTeamUser } from "@/lib/auth/dal"
 import { isTeamRole } from "@/lib/auth/permissions"
 import { generateToken } from "@/lib/auth/tokens"
+import { draftProposal, type ProposalDraft } from "@/lib/finance/proposal-ai"
 import { db } from "@/lib/db"
 import { currencyCodes } from "@/lib/finance/constants"
 import { emailInvoice, emailProposal, financeAudience } from "@/lib/finance/delivery"
@@ -653,4 +655,17 @@ export async function updateBillingSettings(_prev: FormState, formData: FormData
   await logEvent({ actor: userActor(user), action: "settings.billing.update" })
   revalidatePath("/settings/billing")
   return { ok: true, message: "Billing settings saved." }
+}
+
+export async function generateProposalDraft(recipient: string, items: string[]): Promise<{ ok: true; draft: ProposalDraft } | { ok: false; error: string }> {
+  const user = await requireFinanceWriter()
+  if (!process.env.GROQ_API_KEY) return { ok: false, error: "Add GROQ_API_KEY to .env first." }
+  if (!allowAiRequest(user.id)) return { ok: false, error: "You've generated several AI drafts. Wait a minute and try again." }
+  if (!/^(lead|client):[a-z0-9]+$/i.test(recipient)) return { ok: false, error: "Choose a valid recipient." }
+  try {
+    return { ok: true, draft: await draftProposal(recipient, items.slice(0, 100).map((item) => item.slice(0, 500))) }
+  } catch (error) {
+    console.error("[proposal-ai] draft failed:", error instanceof Error ? error.message : error)
+    return { ok: false, error: "The AI service couldn't draft this proposal. Try again in a moment." }
+  }
 }

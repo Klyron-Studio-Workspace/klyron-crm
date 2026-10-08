@@ -7,6 +7,7 @@ import { echo, fieldErrorsFrom, type FormState } from "@/lib/actions/state"
 import { logEvent, userActor } from "@/lib/audit"
 import { can, requireTeamUser } from "@/lib/auth/dal"
 import { editableRoles, modules } from "@/lib/auth/permissions"
+import { generateToken, hashToken } from "@/lib/auth/tokens"
 import { db } from "@/lib/db"
 import type { Access, Role } from "@/lib/generated/prisma/enums"
 
@@ -66,5 +67,28 @@ export async function updatePermission(role: Role, module: string, access: Acces
     metadata: parsed.data,
   })
   revalidatePath("/settings/permissions")
+  return { ok: true as const }
+}
+
+export async function generateMcpToken() {
+  const actor = await requireTeamUser()
+  if (actor.role !== "OWNER") return { ok: false as const, error: "Only the Owner can manage MCP access." }
+  const token = generateToken()
+  await db.orgSettings.upsert({
+    where: { id: "org" },
+    create: { id: "org", mcpTokenHash: hashToken(token), mcpTokenCreatedAt: new Date() },
+    update: { mcpTokenHash: hashToken(token), mcpTokenCreatedAt: new Date() },
+  })
+  await logEvent({ actor: userActor(actor), action: "settings.mcp.rotate", entity: { type: "org", id: "org" } })
+  revalidatePath("/settings/mcp")
+  return { ok: true as const, token }
+}
+
+export async function revokeMcpToken() {
+  const actor = await requireTeamUser()
+  if (actor.role !== "OWNER") return { ok: false as const, error: "Only the Owner can manage MCP access." }
+  await db.orgSettings.update({ where: { id: "org" }, data: { mcpTokenHash: null, mcpTokenCreatedAt: null } })
+  await logEvent({ actor: userActor(actor), action: "settings.mcp.revoke", entity: { type: "org", id: "org" } })
+  revalidatePath("/settings/mcp")
   return { ok: true as const }
 }

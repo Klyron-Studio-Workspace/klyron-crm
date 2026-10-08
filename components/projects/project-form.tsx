@@ -1,5 +1,6 @@
 "use client"
 
+import { ActivityIcon, BuildingIcon, CalendarClockIcon, CalendarIcon, FolderKanbanIcon, PackageIcon, UserCheckIcon } from "lucide-react"
 import { useActionState } from "react"
 
 import { FormAlert } from "@/components/forms/form-alert"
@@ -65,13 +66,13 @@ function ProjectForm({ mode, projectId, initial, clients, services, members, cli
 
       {/* Remount inputs after a failed submit (React resets forms after actions). */}
       <div key={JSON.stringify(echoed ?? initial)} className="flex flex-col gap-5">
-        <FormField label="Project name" name="name" defaultValue={v.name} required autoComplete="off" errors={errors?.name} />
+        <FormField label="Project name" icon={FolderKanbanIcon} hint="A short name the team and client will recognise." name="name" defaultValue={v.name} required autoComplete="off" errors={errors?.name} />
         <div className="grid gap-4 sm:grid-cols-2">
           {clientLocked ? (
             <input type="hidden" name="clientId" value={v.clientId} />
           ) : (
             <SelectField
-              label="Client"
+              label="Client" icon={BuildingIcon} hint="Who the project is for."
               name="clientId"
               id={`${mode}-project-client`}
               value={v.clientId}
@@ -80,29 +81,29 @@ function ProjectForm({ mode, projectId, initial, clients, services, members, cli
             />
           )}
           <SelectField
-            label="Service"
+            label="Service" icon={PackageIcon} optional hint="Which service this falls under, for reporting."
             name="serviceId"
             id={`${mode}-project-service`}
             value={v.serviceId || "none"}
             items={[{ value: "none", label: "None" }, ...services.map((s) => ({ value: s.id, label: s.name }))]}
           />
           <SelectField
-            label="Status"
+            label="Status" icon={ActivityIcon} hint="Planning, active, on hold, completed or cancelled."
             name="status"
             id={`${mode}-project-status`}
             value={v.status}
             items={projectStatuses.map((s) => ({ value: s, label: projectStatusLabels[s] }))}
           />
           <SelectField
-            label="Project lead"
+            label="Project lead" icon={UserCheckIcon} hint="Responsible for delivery; gets notified about the project."
             name="ownerId"
             id={`${mode}-project-owner`}
             value={v.ownerId || "none"}
             items={[{ value: "none", label: "No lead" }, ...members.map((m) => ({ value: m.id, label: m.name }))]}
             error={errors?.ownerId?.[0]}
           />
-          <FormField label="Start date" name="startDate" type="date" defaultValue={v.startDate} errors={errors?.startDate} />
-          <FormField label="Deadline" name="dueDate" type="date" defaultValue={v.dueDate} errors={errors?.dueDate} />
+          <FormField label="Start date" icon={CalendarIcon} optional name="startDate" type="date" defaultValue={v.startDate} errors={errors?.startDate} />
+          <FormField label="Deadline" icon={CalendarClockIcon} optional hint="Shown to the client in their portal." name="dueDate" type="date" defaultValue={v.dueDate} errors={errors?.dueDate} />
         </div>
 
         <div className="flex flex-col gap-2">

@@ -6,6 +6,7 @@ import { ArrowLeftIcon } from "lucide-react"
 import { MilestonesPanel } from "@/components/projects/milestones-panel"
 import { ProjectActions } from "@/components/projects/project-actions"
 import { ProjectActivity } from "@/components/projects/project-activity"
+import { ProjectAiCard } from "@/components/projects/project-ai-card"
 import { DueDate, ProgressBar, ProjectStatusBadge } from "@/components/projects/project-bits"
 import { TaskBoard } from "@/components/projects/task-board"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -101,6 +102,7 @@ export default async function ProjectPage({ params }: PageProps<"/projects/[id]"
         </section>
 
         <div className="flex flex-col gap-6">
+          <ProjectAiCard projectId={project.id} />
           <Card>
             <CardHeader className="border-b">
               <CardTitle className="text-base font-semibold">Milestones</CardTitle>

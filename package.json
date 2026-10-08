@@ -8,6 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "node --experimental-strip-types --test lib/leads/ai-result.test.ts lib/projects/ai-result.test.ts lib/whiteboard/document.test.ts lib/whiteboard/geometry.test.ts lib/whiteboard/operations.test.ts",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",

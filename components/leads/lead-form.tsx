@@ -1,5 +1,6 @@
 "use client"
 
+import { BanknoteIcon, BuildingIcon, CoinsIcon, GlobeIcon, KanbanSquareIcon, MailIcon, PhoneIcon, RadarIcon, UserCheckIcon, UserRoundIcon } from "lucide-react"
 import { useActionState } from "react"
 
 import { FormAlert } from "@/components/forms/form-alert"
@@ -57,13 +58,13 @@ function LeadForm({ mode, leadId, initial, stages, members, services, ownerLocke
       {/* Remount inputs after a failed submit so they show the echoed values. */}
       <div key={JSON.stringify(state?.values ?? initial)} className="flex flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Contact name" name="name" defaultValue={v.name} required autoComplete="off" errors={errors?.name} />
-        <FormField label="Company" name="company" defaultValue={v.company} autoComplete="off" errors={errors?.company} />
-        <FormField label="Email" name="email" type="email" defaultValue={v.email} autoComplete="off" errors={errors?.email} />
-        <FormField label="Phone" name="phone" type="tel" defaultValue={v.phone} autoComplete="off" errors={errors?.phone} />
-        <FormField label="Website" name="website" defaultValue={v.website} placeholder="example.com" autoComplete="off" errors={errors?.website} />
+        <FormField label="Contact name" icon={UserRoundIcon} hint="The person you're talking to." name="name" defaultValue={v.name} required autoComplete="off" errors={errors?.name} />
+        <FormField label="Company" icon={BuildingIcon} optional hint="Their business, if any." name="company" defaultValue={v.company} autoComplete="off" errors={errors?.company} />
+        <FormField label="Email" icon={MailIcon} optional name="email" type="email" defaultValue={v.email} autoComplete="off" errors={errors?.email} />
+        <FormField label="Phone" icon={PhoneIcon} optional name="phone" type="tel" defaultValue={v.phone} autoComplete="off" errors={errors?.phone} />
+        <FormField label="Website" icon={GlobeIcon} optional name="website" defaultValue={v.website} placeholder="example.com" autoComplete="off" errors={errors?.website} />
         <SelectField
-          label="Source"
+          label="Source" icon={RadarIcon} hint="How they found you, for tracking what works."
           name="source"
           id={`${mode}-source`}
           value={v.source}
@@ -71,9 +72,9 @@ function LeadForm({ mode, leadId, initial, stages, members, services, ownerLocke
           error={errors?.source?.[0]}
         />
         <div className="grid grid-cols-[1fr_7rem] gap-2">
-          <FormField label="Deal value" name="value" type="number" inputMode="decimal" min={0} step="any" defaultValue={v.value} errors={errors?.value} />
+          <FormField label="Deal value" icon={CoinsIcon} hint="What the work is roughly worth. Feeds the pipeline totals." name="value" type="number" inputMode="decimal" min={0} step="any" defaultValue={v.value} errors={errors?.value} />
           <SelectField
-            label="Currency"
+            label="Currency" icon={BanknoteIcon}
             name="currency"
             id={`${mode}-currency`}
             value={v.currency}
@@ -84,7 +85,7 @@ function LeadForm({ mode, leadId, initial, stages, members, services, ownerLocke
           <input type="hidden" name="ownerId" value={v.ownerId} />
         ) : (
           <SelectField
-            label="Owner"
+            label="Owner" icon={UserCheckIcon} hint="Who on the team follows this lead up."
             name="ownerId"
             id={`${mode}-owner`}
             value={v.ownerId || "none"}
@@ -94,7 +95,7 @@ function LeadForm({ mode, leadId, initial, stages, members, services, ownerLocke
         )}
         {mode === "create" && (
           <SelectField
-            label="Stage"
+            label="Stage" icon={KanbanSquareIcon} hint="Where the lead starts on the board."
             name="stageId"
             id="create-stage"
             value={v.stageId}

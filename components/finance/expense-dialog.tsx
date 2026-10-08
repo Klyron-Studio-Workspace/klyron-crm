@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useActionState } from "react"
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { BanknoteIcon, BuildingIcon, CalendarIcon, CoinsIcon, FolderKanbanIcon, PencilIcon, PlusIcon, ReceiptTextIcon, StoreIcon, TagIcon, Trash2Icon } from "lucide-react"
 
 import { useRunAction } from "@/components/finance/invoice-actions"
 import { ChoiceField } from "@/components/forms/choice-field"
@@ -60,16 +60,16 @@ function ExpenseForm({ expense, options, onDone }: { expense?: ExpenseDTO; optio
     <form action={action} noValidate className="flex flex-col gap-4">
       {expense && <input type="hidden" name="expenseId" value={expense.id} />}
       {state?.error && <FormAlert tone="error">{state.error}</FormAlert>}
-      <FormField label="What was it for?" name="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Figma subscription" maxLength={500} errors={errors?.description} />
+      <FormField label="What was it for?" icon={ReceiptTextIcon} hint="A short description, e.g. the subscription or contractor." name="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Figma subscription" maxLength={500} errors={errors?.description} />
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Amount" name="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" errors={errors?.amount} />
-        <ChoiceField label="Currency" name="currency" id="expense-currency" value={currency} onChange={setCurrency} items={currencyItems} />
-        <FormField label="Date" name="spentOn" type="date" value={spentOn} onChange={(e) => setSpentOn(e.target.value)} errors={errors?.spentOn} />
-        <ChoiceField label="Category" name="category" id="expense-category" value={category} onChange={setCategory} items={categoryItems} />
-        <FormField label="Vendor (optional)" name="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} maxLength={120} />
+        <FormField label="Amount" icon={CoinsIcon} name="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" errors={errors?.amount} />
+        <ChoiceField label="Currency" icon={BanknoteIcon} name="currency" id="expense-currency" value={currency} onChange={setCurrency} items={currencyItems} />
+        <FormField label="Date" icon={CalendarIcon} hint="When the money was spent." name="spentOn" type="date" value={spentOn} onChange={(e) => setSpentOn(e.target.value)} errors={errors?.spentOn} />
+        <ChoiceField label="Category" icon={TagIcon} hint="Groups expenses in the totals." name="category" id="expense-category" value={category} onChange={setCategory} items={categoryItems} />
+        <FormField label="Vendor" icon={StoreIcon} optional hint="Who you paid." name="vendor" value={vendor} onChange={(e) => setVendor(e.target.value)} maxLength={120} />
         <div />
         <ChoiceField
-          label="Client (optional)"
+          label="Client" icon={BuildingIcon} optional hint="Link it to a client to see what work costs."
           name="clientId"
           id="expense-client"
           value={clientId}
@@ -81,7 +81,7 @@ function ExpenseForm({ expense, options, onDone }: { expense?: ExpenseDTO; optio
           error={errors?.clientId?.[0]}
         />
         <ChoiceField
-          label="Project (optional)"
+          label="Project" icon={FolderKanbanIcon} optional
           name="projectId"
           id="expense-project"
           value={projectId}

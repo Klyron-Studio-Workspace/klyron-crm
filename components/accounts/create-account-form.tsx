@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { useActionState } from "react"
-import { EyeIcon, EyeOffIcon, WandSparklesIcon } from "lucide-react"
+import { EyeIcon, EyeOffIcon, MailIcon, UserRoundIcon, WandSparklesIcon } from "lucide-react"
 
 import { CopySecret } from "@/components/forms/copy-secret"
 import { FormAlert } from "@/components/forms/form-alert"
@@ -72,8 +72,8 @@ function CreateAccountForm({ action: serverAction, roles, hidden, submitLabel }:
       {hidden && Object.entries(hidden).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
       {state?.error && <FormAlert tone="error">{state.error}</FormAlert>}
       <div key={JSON.stringify(values ?? null)} className="flex flex-col gap-4">
-        <FormField label="Full name" name="name" required autoComplete="off" defaultValue={values?.name} errors={errors?.name} />
-        <FormField label="Email" name="email" type="email" required autoComplete="off" defaultValue={values?.email} errors={errors?.email} />
+        <FormField label="Full name" icon={UserRoundIcon} name="name" required autoComplete="off" defaultValue={values?.name} errors={errors?.name} />
+        <FormField label="Email" icon={MailIcon} hint="They sign in with this email." name="email" type="email" required autoComplete="off" defaultValue={values?.email} errors={errors?.email} />
         {roles && (
         <div className="flex flex-col gap-2">
           <Label htmlFor="member-role">Role</Label>

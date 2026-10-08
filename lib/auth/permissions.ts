@@ -7,6 +7,7 @@ export const modules = [
   { key: "finance", label: "Finance", description: "Proposals, invoices and expenses" },
   { key: "chat", label: "Chat", description: "Messages, calls and shared media" },
   { key: "files", label: "Files", description: "Documents and uploads" },
+  { key: "whiteboard", label: "Whiteboard", description: "Shared visual boards and diagrams" },
   { key: "team", label: "Team", description: "Members, accounts and roles" },
   { key: "settings", label: "Settings", description: "Organization settings" },
   { key: "audit", label: "Audit log", description: "History of every action" },
@@ -23,19 +24,19 @@ export type PermissionMatrix = Record<Role, Record<ModuleKey, Access>>
 export const defaultPermissions: PermissionMatrix = {
   OWNER: {
     leads: "WRITE", clients: "WRITE", projects: "WRITE", finance: "WRITE", chat: "WRITE",
-    files: "WRITE", team: "WRITE", settings: "WRITE", audit: "READ",
+    files: "WRITE", whiteboard: "WRITE", team: "WRITE", settings: "WRITE", audit: "READ",
   },
   ADMIN: {
     leads: "WRITE", clients: "WRITE", projects: "WRITE", finance: "WRITE", chat: "WRITE",
-    files: "WRITE", team: "WRITE", settings: "WRITE", audit: "READ",
+    files: "WRITE", whiteboard: "WRITE", team: "WRITE", settings: "WRITE", audit: "READ",
   },
   MEMBER: {
     leads: "WRITE", clients: "READ", projects: "WRITE", finance: "NONE", chat: "WRITE",
-    files: "WRITE", team: "READ", settings: "NONE", audit: "NONE",
+    files: "WRITE", whiteboard: "WRITE", team: "READ", settings: "NONE", audit: "NONE",
   },
   CLIENT: {
     leads: "NONE", clients: "NONE", projects: "READ", finance: "READ", chat: "WRITE",
-    files: "WRITE", team: "NONE", settings: "NONE", audit: "NONE",
+    files: "WRITE", whiteboard: "NONE", team: "NONE", settings: "NONE", audit: "NONE",
   },
 }
 

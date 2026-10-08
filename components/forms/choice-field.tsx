@@ -1,6 +1,8 @@
 "use client"
 
-import { Label } from "@/components/ui/label"
+import type { LucideIcon } from "lucide-react"
+
+import { FieldHint, FieldLabel } from "@/components/forms/field-label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
@@ -13,16 +15,20 @@ type ChoiceFieldProps = {
   onChange: (value: string) => void
   items: { value: string; label: string }[]
   error?: string
-  hint?: string
+  hint?: React.ReactNode
+  icon?: LucideIcon
+  optional?: boolean
   disabled?: boolean
   className?: string
 }
 
 /** Controlled labelled select, for forms whose fields depend on each other. */
-function ChoiceField({ label, name, id, value, onChange, items, error, hint, disabled, className }: ChoiceFieldProps) {
+function ChoiceField({ label, name, id, value, onChange, items, error, hint, icon, optional, disabled, className }: ChoiceFieldProps) {
   return (
     <div className={cn("flex flex-col gap-2", className)}>
-      <Label htmlFor={id}>{label}</Label>
+      <FieldLabel htmlFor={id} icon={icon} optional={optional}>
+        {label}
+      </FieldLabel>
       <Select name={name} items={items} value={value} onValueChange={(next: string | null) => next != null && onChange(next)} disabled={disabled}>
         <SelectTrigger id={id} className="h-10! w-full" aria-invalid={error ? true : undefined}>
           <SelectValue />
@@ -35,7 +41,7 @@ function ChoiceField({ label, name, id, value, onChange, items, error, hint, dis
           ))}
         </SelectContent>
       </Select>
-      {error ? <p className="text-xs text-primary-strong">{error}</p> : hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
+      <FieldHint error={error}>{hint}</FieldHint>
     </div>
   )
 }

@@ -170,10 +170,17 @@ Bring Klyron AI into the rest of the CRM:
 - Workspace-wide questions ("what's overdue this week?").
 
 ### Phase 7 — MCP server
-Let outside AI tools safely read and act on CRM data.
+- Stateless HTTP MCP endpoint at `POST /api/mcp`, authenticated with a bearer token generated in Settings → MCP.
+- Read tools: `crm_overview`, `search_leads`, `list_projects`, `list_invoices`.
+- Write tools: `add_lead_note`, `create_project_task`; both validate input and write to the audit log as `MCP`.
+- Whiteboard tools: `whiteboard_capabilities`, `list_whiteboards`, `get_whiteboard`, `create_whiteboard`,
+  and atomic `edit_whiteboard` operations. Agents receive explicit supported/unsupported capabilities,
+  use semantic object operations instead of raw JSON, and must provide the latest board version to avoid overwrites.
+- Configure an MCP client with the endpoint and one-time token shown in Settings → MCP. Keep the token server-side and rotate it if exposed.
 
-### Phase 8 — Later items
-- Whiteboard.
+### Phase 8 — In progress
+- **Whiteboard** (`/whiteboard`): persistent visual boards with an infinite-feeling SVG canvas, pan/zoom,
+  shapes, connectors, text, sticky notes, selection/dragging, colors, keyboard shortcuts, undo/redo and autosave.
 - Import leads from LeadForge.
 - Two-factor sign-in (2FA).
 

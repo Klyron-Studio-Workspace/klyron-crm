@@ -1,5 +1,6 @@
 "use client"
 
+import { CalendarClockIcon, HashIcon, LandmarkIcon } from "lucide-react"
 import * as React from "react"
 import { useActionState } from "react"
 
@@ -49,10 +50,10 @@ function BillingSettingsForm({ values }: { values: BillingValues }) {
               <Textarea id="billing-instructions" name="paymentInstructions" rows={4} maxLength={2000} value={v.paymentInstructions} onChange={set("paymentInstructions")} placeholder={"Bank: …\nAccount title: …\nIBAN: …\nSWIFT: …"} />
               <p className="text-xs text-muted-foreground">Shown on unpaid invoices.</p>
             </div>
-            <FormField label="Default tax rate (%)" name="defaultTaxRate" inputMode="decimal" value={v.defaultTaxRate} onChange={set("defaultTaxRate")} errors={errors?.defaultTaxRate} hint="Pre-filled on new documents; change it per document." />
-            <FormField label="Payment terms (days)" name="paymentTermsDays" inputMode="numeric" value={v.paymentTermsDays} onChange={set("paymentTermsDays")} errors={errors?.paymentTermsDays} hint="New invoices are due this many days after they're issued." />
-            <FormField label="Invoice number prefix" name="invoicePrefix" value={v.invoicePrefix} onChange={set("invoicePrefix")} maxLength={10} errors={errors?.invoicePrefix} hint={`Next invoice: ${v.invoicePrefix.toUpperCase() || "INV"}-${v.nextInvoice}`} />
-            <FormField label="Proposal number prefix" name="proposalPrefix" value={v.proposalPrefix} onChange={set("proposalPrefix")} maxLength={10} errors={errors?.proposalPrefix} hint={`Next proposal: ${v.proposalPrefix.toUpperCase() || "PRO"}-${v.nextProposal}`} />
+            <FormField label="Default tax rate (%)" icon={LandmarkIcon} name="defaultTaxRate" inputMode="decimal" value={v.defaultTaxRate} onChange={set("defaultTaxRate")} errors={errors?.defaultTaxRate} hint="Pre-filled on new documents; change it per document." />
+            <FormField label="Payment terms (days)" icon={CalendarClockIcon} name="paymentTermsDays" inputMode="numeric" value={v.paymentTermsDays} onChange={set("paymentTermsDays")} errors={errors?.paymentTermsDays} hint="New invoices are due this many days after they're issued." />
+            <FormField label="Invoice number prefix" icon={HashIcon} name="invoicePrefix" value={v.invoicePrefix} onChange={set("invoicePrefix")} maxLength={10} errors={errors?.invoicePrefix} hint={`Next invoice: ${v.invoicePrefix.toUpperCase() || "INV"}-${v.nextInvoice}`} />
+            <FormField label="Proposal number prefix" icon={HashIcon} name="proposalPrefix" value={v.proposalPrefix} onChange={set("proposalPrefix")} maxLength={10} errors={errors?.proposalPrefix} hint={`Next proposal: ${v.proposalPrefix.toUpperCase() || "PRO"}-${v.nextProposal}`} />
             <label className="flex items-start gap-3 rounded-lg border border-border p-4 sm:col-span-2">
               <input
                 type="checkbox"

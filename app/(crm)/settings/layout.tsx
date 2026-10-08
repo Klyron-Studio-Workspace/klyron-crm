@@ -23,6 +23,7 @@ export default async function SettingsLayout({ children }: LayoutProps<"/setting
     ...(settingsWrite && financeWrite ? [{ href: "/settings/billing", label: "Billing" }] : []),
     ...(team ? [{ href: "/settings/team", label: "Team" }] : []),
     ...(user.role === "OWNER" ? [{ href: "/settings/permissions", label: "Permissions" }] : []),
+    ...(user.role === "OWNER" ? [{ href: "/settings/mcp", label: "MCP" }] : []),
     { href: "/settings/security", label: "Security" },
     ...(audit ? [{ href: "/settings/audit", label: "Audit log" }] : []),
   ]

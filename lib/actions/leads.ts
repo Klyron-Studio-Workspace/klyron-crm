@@ -5,14 +5,17 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 
 import { echo, fieldErrorsFrom, type FormState } from "@/lib/actions/state"
+import { allowAiRequest } from "@/lib/ai/rate-limit"
 import { logEvent, userActor } from "@/lib/audit"
 import { can, requireTeamUser, type CurrentUser } from "@/lib/auth/dal"
 import { db } from "@/lib/db"
+import { generateLeadInsights, isLeadAiConfigured, type LeadInsights } from "@/lib/leads/ai"
 import { currencies, leadSources, lostReasons, noteTypes } from "@/lib/leads/constants"
 import { leadScope } from "@/lib/leads/queries"
 import { notify } from "@/lib/notifications"
 
 type Result = { ok: true; message?: string } | { ok: false; error: string }
+type InsightResult = { ok: true; insights: LeadInsights } | { ok: false; error: string }
 
 const LEADS = "/leads"
 
@@ -473,4 +476,23 @@ export async function deleteReminder(reminderId: string): Promise<Result> {
   await db.reminder.delete({ where: { id: reminderId } })
   revalidateLead(reminder.leadId)
   return { ok: true }
+}
+
+// ─── AI assistance ─────────────────────────────────────────────────────────
+
+export async function analyzeLead(leadId: string): Promise<InsightResult> {
+  const user = await requireTeamUser()
+  if (!(await can(user, "leads", "READ"))) return { ok: false, error: "You don't have permission to view leads." }
+  const lead = await findScopedLead(user, leadId)
+  if (!lead) return { ok: false, error: "Lead not found." }
+  if (!isLeadAiConfigured()) return { ok: false, error: "Add GROQ_API_KEY to .env first." }
+
+  if (!allowAiRequest(user.id)) return { ok: false, error: "You've generated several AI drafts. Wait a minute and try again." }
+
+  try {
+    return { ok: true, insights: await generateLeadInsights(lead.id) }
+  } catch (error) {
+    console.error("[lead-ai] analysis failed:", error instanceof Error ? error.message : error)
+    return { ok: false, error: "The AI service couldn't analyze this lead. Try again in a moment." }
+  }
 }

@@ -1,5 +1,6 @@
 "use client"
 
+import { CalendarIcon, CoinsIcon, HashIcon, WalletIcon } from "lucide-react"
 import * as React from "react"
 import { useActionState } from "react"
 import Link from "next/link"
@@ -237,10 +238,10 @@ function PaymentForm({ invoiceId, balance, today, onDone }: { invoiceId: string;
       <input type="hidden" name="invoiceId" value={invoiceId} />
       {state?.error && <FormAlert tone="error">{state.error}</FormAlert>}
       <div className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Amount" name="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} errors={errors?.amount} />
-        <FormField label="Received on" name="paidOn" type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} errors={errors?.paidOn} />
-        <ChoiceField label="Method" name="method" id="payment-method" value={method} onChange={setMethod} items={methodItems} />
-        <FormField label="Reference (optional)" name="reference" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Transaction ID" maxLength={120} />
+        <FormField label="Amount" icon={CoinsIcon} hint="How much you received. Partial payments are fine." name="amount" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} errors={errors?.amount} />
+        <FormField label="Received on" icon={CalendarIcon} name="paidOn" type="date" value={paidOn} onChange={(e) => setPaidOn(e.target.value)} errors={errors?.paidOn} />
+        <ChoiceField label="Method" icon={WalletIcon} name="method" id="payment-method" value={method} onChange={setMethod} items={methodItems} />
+        <FormField label="Reference" icon={HashIcon} optional hint="Transaction or cheque number, for your records." name="reference" value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Transaction ID" maxLength={120} />
       </div>
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="secondary" />}>Cancel</DialogClose>

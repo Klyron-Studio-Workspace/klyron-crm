@@ -1,5 +1,6 @@
 "use client"
 
+import { BuildingIcon, GlobeIcon, MailIcon, PhoneIcon, UserRoundIcon } from "lucide-react"
 import { useActionState } from "react"
 
 import { FormAlert } from "@/components/forms/form-alert"
@@ -43,11 +44,11 @@ function ClientForm({ mode, clientId, initial, members, footer, className }: Cli
       {state?.ok && state.message && <FormAlert tone="success">{state.message}</FormAlert>}
       <div key={JSON.stringify(state?.values ?? initial)} className="flex flex-col gap-4">
         <div className="grid gap-4 sm:grid-cols-2">
-          <FormField label="Client name" name="name" defaultValue={v.name} required autoComplete="off" hint="Company or person" errors={errors?.name} />
-          <FormField label="Main contact" name="contactName" defaultValue={v.contactName} autoComplete="off" errors={errors?.contactName} />
-          <FormField label="Email" name="email" type="email" defaultValue={v.email} autoComplete="off" errors={errors?.email} />
-          <FormField label="Phone" name="phone" type="tel" defaultValue={v.phone} autoComplete="off" errors={errors?.phone} />
-          <FormField label="Website" name="website" defaultValue={v.website} placeholder="example.com" autoComplete="off" errors={errors?.website} />
+          <FormField label="Client name" icon={BuildingIcon} name="name" defaultValue={v.name} required autoComplete="off" hint="Company or person" errors={errors?.name} />
+          <FormField label="Main contact" icon={UserRoundIcon} optional hint="Who you usually deal with." name="contactName" defaultValue={v.contactName} autoComplete="off" errors={errors?.contactName} />
+          <FormField label="Email" icon={MailIcon} optional hint="Invoices and proposals are emailed here." name="email" type="email" defaultValue={v.email} autoComplete="off" errors={errors?.email} />
+          <FormField label="Phone" icon={PhoneIcon} optional name="phone" type="tel" defaultValue={v.phone} autoComplete="off" errors={errors?.phone} />
+          <FormField label="Website" icon={GlobeIcon} optional name="website" defaultValue={v.website} placeholder="example.com" autoComplete="off" errors={errors?.website} />
           <SelectField
             label="Account owner"
             name="ownerId"

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation"
 import { z } from "zod"
 
 import { echo, fieldErrorsFrom, type FormState } from "@/lib/actions/state"
+import { allowAiRequest } from "@/lib/ai/rate-limit"
 import { logEvent, userActor } from "@/lib/audit"
 import { can, requireTeamUser, type CurrentUser } from "@/lib/auth/dal"
 import { db } from "@/lib/db"
@@ -19,9 +20,11 @@ import {
   type TaskStatusKey,
 } from "@/lib/projects/constants"
 import { projectScope } from "@/lib/projects/queries"
+import { generateProjectInsights, isProjectAiConfigured, type ProjectInsights } from "@/lib/projects/ai"
 import { notify } from "@/lib/notifications"
 
 type Result = { ok: true; message?: string } | { ok: false; error: string }
+type InsightResult = { ok: true; insights: ProjectInsights } | { ok: false; error: string }
 
 async function requireProjectWriter() {
   const user = await requireTeamUser()
@@ -489,4 +492,22 @@ export async function deleteTask(taskId: string): Promise<Result> {
   await logEvent({ actor: userActor(user), action: "task.delete", entity: { type: "project", id: task.projectId }, metadata: { title: task.title } })
   revalidateProject(task.projectId, project.clientId)
   return { ok: true }
+}
+
+// ─── AI assistance ─────────────────────────────────────────────────────────
+
+export async function analyzeProject(projectId: string): Promise<InsightResult> {
+  const user = await requireTeamUser()
+  if (!(await can(user, "projects", "READ"))) return { ok: false, error: "You don't have permission to view projects." }
+  const project = await findScopedProject(user, projectId)
+  if (!project) return { ok: false, error: "Project not found." }
+  if (!isProjectAiConfigured()) return { ok: false, error: "Add GROQ_API_KEY to .env first." }
+  if (!allowAiRequest(user.id)) return { ok: false, error: "You've generated several AI summaries. Wait a minute and try again." }
+
+  try {
+    return { ok: true, insights: await generateProjectInsights(project.id) }
+  } catch (error) {
+    console.error("[project-ai] analysis failed:", error instanceof Error ? error.message : error)
+    return { ok: false, error: "The AI service couldn't summarize this project. Try again in a moment." }
+  }
 }

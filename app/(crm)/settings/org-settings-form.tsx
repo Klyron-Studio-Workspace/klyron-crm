@@ -1,5 +1,6 @@
 "use client"
 
+import { BuildingIcon, GlobeIcon, MailIcon } from "lucide-react"
 import { useActionState } from "react"
 
 import { FormAlert } from "@/components/forms/form-alert"
@@ -52,9 +53,9 @@ function OrgSettingsForm({ values, canEdit }: { values: OrgSettingsValues; canEd
           {state?.ok && <FormAlert tone="success">{state.message}</FormAlert>}
           {/* Remount after a failed save so fields show the echoed values (React resets forms after actions). */}
           <fieldset key={JSON.stringify(echoed ?? null)} disabled={!canEdit} className="grid gap-5 sm:grid-cols-2">
-            <FormField label="Studio name" name="name" defaultValue={v.name} required errors={errors?.name} />
+            <FormField label="Studio name" icon={BuildingIcon} hint="Shown on invoices, proposals and emails." name="name" defaultValue={v.name} required errors={errors?.name} />
             <FormField
-              label="Website"
+              label="Website" icon={GlobeIcon} optional
               name="website"
               type="url"
               placeholder="https://www.klyronstudio.com"
@@ -62,7 +63,7 @@ function OrgSettingsForm({ values, canEdit }: { values: OrgSettingsValues; canEd
               errors={errors?.website}
             />
             <FormField
-              label="Billing email"
+              label="Billing email" icon={MailIcon} optional hint="Printed on invoices so clients know where to reply."
               name="billingEmail"
               type="email"
               placeholder="billing@klyronstudio.com"

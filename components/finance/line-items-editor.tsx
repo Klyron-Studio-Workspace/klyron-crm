@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ArrowDownIcon, ArrowUpIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, BadgePercentIcon, LandmarkIcon, PackageIcon, PlusIcon, Trash2Icon } from "lucide-react"
 
 import { formatAmount } from "@/components/finance/document-view"
 import { Button } from "@/components/ui/button"
@@ -75,18 +75,28 @@ function LineItemsEditor({ lines, onLinesChange, discount, onDiscountChange, tax
 
   return (
     <fieldset className="flex flex-col gap-3">
-      <legend className="mb-2 text-sm font-medium">Line items</legend>
+      <legend className="sr-only">Line items</legend>
       <input type="hidden" name="items" value={payload} />
+
+      {/* Column headers (desktop). On phones each field is labelled inside its card. */}
+      <div aria-hidden className="hidden gap-2 border-b border-border pb-2 text-xs font-medium text-muted-foreground sm:grid sm:grid-cols-[minmax(0,1fr)_5.5rem_8rem_7rem_6.5rem]">
+        <span>Description</span>
+        <span className="text-right">Qty</span>
+        <span className="text-right">Unit price ({currency})</span>
+        <span className="text-right">Amount</span>
+        <span />
+      </div>
 
       <ol className="flex flex-col gap-3">
         {lines.map((line, index) => {
           const amount = fromCents(lineAmountCents({ quantity: parse(line.quantity), unitPrice: parse(line.unitPrice) }))
           const n = index + 1
           return (
-            <li key={line.key} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_5.5rem_8rem_7rem_auto] sm:items-start sm:border-0 sm:p-0">
+            <li key={line.key} className="grid gap-2 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,1fr)_5.5rem_8rem_7rem_6.5rem] sm:items-start sm:border-0 sm:p-0">
+              <span className="text-xs font-medium text-muted-foreground sm:hidden">Item {n}</span>
               <Textarea
                 aria-label={`Line ${n} description`}
-                placeholder="Description"
+                placeholder={index === 0 ? "What you're charging for, e.g. Website design (5 pages)" : "Description"}
                 rows={1}
                 maxLength={500}
                 value={line.description}
@@ -95,6 +105,7 @@ function LineItemsEditor({ lines, onLinesChange, discount, onDiscountChange, tax
               />
               <Input
                 aria-label={`Line ${n} quantity`}
+                title="Quantity: hours, pages, months, or 1 for a fixed price"
                 inputMode="decimal"
                 value={line.quantity}
                 onChange={(e) => update(line.key, { quantity: e.target.value })}
@@ -102,6 +113,7 @@ function LineItemsEditor({ lines, onLinesChange, discount, onDiscountChange, tax
               />
               <Input
                 aria-label={`Line ${n} unit price`}
+                title="Price for one unit, before discount and tax"
                 inputMode="decimal"
                 placeholder="0.00"
                 value={line.unitPrice}
@@ -147,8 +159,9 @@ function LineItemsEditor({ lines, onLinesChange, discount, onDiscountChange, tax
             value={null}
             onValueChange={(v: string | null) => v && addService(v)}
           >
-            <SelectTrigger size="sm" aria-label="Add a service from the catalog" className="w-56">
-              <SelectValue placeholder="Add from services…" />
+            <SelectTrigger size="sm" aria-label="Add a service from the catalog" className="w-60">
+              <PackageIcon aria-hidden className="size-3.5 text-muted-foreground" />
+              <SelectValue placeholder="Add from your services…" />
             </SelectTrigger>
             <SelectContent>
               {catalog.map((s) => (
@@ -162,21 +175,35 @@ function LineItemsEditor({ lines, onLinesChange, discount, onDiscountChange, tax
         )}
       </div>
 
-      <div className="mt-2 ml-auto grid w-full max-w-sm grid-cols-[1fr_8rem] items-center gap-x-4 gap-y-2 text-sm">
+      <p className="text-xs text-muted-foreground">
+        Tip: pick from your services to fill the description and price automatically (set prices in Settings → Services).
+      </p>
+
+      <div className="mt-2 ml-auto grid w-full max-w-md grid-cols-[1fr_8rem] items-center gap-x-4 gap-y-3 rounded-xl bg-surface p-4 text-sm">
         <span className="text-muted-foreground">Subtotal</span>
         <span className="text-right tabular-nums">{formatAmount(totals.subtotal, currency)}</span>
-        <Label htmlFor="doc-discount" className="font-normal text-muted-foreground">Discount ({currency})</Label>
-        <Input id="doc-discount" name="discount" inputMode="decimal" placeholder="0.00" value={discount} onChange={(e) => onDiscountChange(e.target.value)} className="h-9 text-right tabular-nums" />
-        <Label htmlFor="doc-tax" className="font-normal text-muted-foreground">Tax rate (%)</Label>
-        <Input id="doc-tax" name="taxRate" inputMode="decimal" placeholder="0" value={taxRate} onChange={(e) => onTaxRateChange(e.target.value)} className="h-9 text-right tabular-nums" />
+        <div>
+          <Label htmlFor="doc-discount" className="gap-1.5 font-normal text-muted-foreground">
+            <BadgePercentIcon aria-hidden className="size-3.5" /> Discount ({currency})
+          </Label>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">A fixed amount off, taken before tax.</p>
+        </div>
+        <Input id="doc-discount" name="discount" inputMode="decimal" placeholder="0.00" value={discount} onChange={(e) => onDiscountChange(e.target.value)} className="h-9 bg-background text-right tabular-nums" />
+        <div>
+          <Label htmlFor="doc-tax" className="gap-1.5 font-normal text-muted-foreground">
+            <LandmarkIcon aria-hidden className="size-3.5" /> Tax rate (%)
+          </Label>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">e.g. 16 for 16% sales tax. Leave empty for none.</p>
+        </div>
+        <Input id="doc-tax" name="taxRate" inputMode="decimal" placeholder="0" value={taxRate} onChange={(e) => onTaxRateChange(e.target.value)} className="h-9 bg-background text-right tabular-nums" />
         {totals.tax > 0 && (
           <>
             <span className="text-muted-foreground">Tax</span>
             <span className="text-right tabular-nums">{formatAmount(totals.tax, currency)}</span>
           </>
         )}
-        <span className="border-t border-border pt-2 font-semibold">Total</span>
-        <span className="border-t border-border pt-2 text-right font-semibold tabular-nums">{formatAmount(totals.total, currency)}</span>
+        <span className="border-t border-border pt-3 font-semibold">Total</span>
+        <span className="border-t border-border pt-3 text-right text-base font-semibold tabular-nums">{formatAmount(totals.total, currency)}</span>
       </div>
     </fieldset>
   )

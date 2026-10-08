@@ -6,6 +6,7 @@ import { ArrowLeftIcon, BuildingIcon, GlobeIcon, MailIcon, PhoneIcon } from "luc
 import { FollowUps } from "@/components/leads/follow-ups"
 import { BillingCard } from "@/components/finance/billing-card"
 import { LeadActions } from "@/components/leads/lead-actions"
+import { LeadAiCard } from "@/components/leads/lead-ai-card"
 import { LeadTimeline } from "@/components/leads/lead-timeline"
 import { NoteComposer } from "@/components/leads/note-composer"
 import { StageBadge } from "@/components/leads/stage-badge"
@@ -123,6 +124,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
         </section>
 
         <div className="flex flex-col gap-6">
+          {canWrite && <LeadAiCard leadId={lead.id} />}
           {canFinance && !lead.client && <BillingCard leadId={lead.id} canWrite={canFinanceWrite} />}
           <Card>
             <CardHeader className="border-b">
