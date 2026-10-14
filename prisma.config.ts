@@ -1,10 +1,8 @@
 import { defineConfig } from "prisma/config"
 
 // Load .env for the Prisma CLI (Node's built-in loader; Next.js loads it on its own).
-try {
-  process.loadEnvFile(".env")
-} catch {
-  // No .env file: rely on the real environment (e.g. on the VPS).
+for (const f of [".env", ".env.local"]) {
+  try { process.loadEnvFile(f) } catch { /* missing file is fine */ }
 }
 
 export default defineConfig({
