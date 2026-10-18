@@ -11,6 +11,7 @@ export const modules = [
   { key: "team", label: "Team", description: "Members, accounts and roles" },
   { key: "settings", label: "Settings", description: "Organization settings" },
   { key: "audit", label: "Audit log", description: "History of every action" },
+  { key: "mail", label: "Mail", description: "Inbound and outbound email" },
 ] as const
 
 export type ModuleKey = (typeof modules)[number]["key"]
@@ -24,19 +25,19 @@ export type PermissionMatrix = Record<Role, Record<ModuleKey, Access>>
 export const defaultPermissions: PermissionMatrix = {
   OWNER: {
     leads: "WRITE", clients: "WRITE", projects: "WRITE", finance: "WRITE", chat: "WRITE",
-    files: "WRITE", whiteboard: "WRITE", team: "WRITE", settings: "WRITE", audit: "READ",
+    files: "WRITE", whiteboard: "WRITE", team: "WRITE", settings: "WRITE", audit: "READ", mail: "WRITE",
   },
   ADMIN: {
     leads: "WRITE", clients: "WRITE", projects: "WRITE", finance: "WRITE", chat: "WRITE",
-    files: "WRITE", whiteboard: "WRITE", team: "WRITE", settings: "WRITE", audit: "READ",
+    files: "WRITE", whiteboard: "WRITE", team: "WRITE", settings: "WRITE", audit: "READ", mail: "WRITE",
   },
   MEMBER: {
     leads: "WRITE", clients: "READ", projects: "WRITE", finance: "NONE", chat: "WRITE",
-    files: "WRITE", whiteboard: "WRITE", team: "READ", settings: "NONE", audit: "NONE",
+    files: "WRITE", whiteboard: "WRITE", team: "READ", settings: "NONE", audit: "NONE", mail: "WRITE",
   },
   CLIENT: {
     leads: "NONE", clients: "NONE", projects: "READ", finance: "READ", chat: "WRITE",
-    files: "WRITE", whiteboard: "NONE", team: "NONE", settings: "NONE", audit: "NONE",
+    files: "WRITE", whiteboard: "NONE", team: "NONE", settings: "NONE", audit: "NONE", mail: "NONE",
   },
 }
 
