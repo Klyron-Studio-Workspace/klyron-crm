@@ -12,6 +12,7 @@ import { revokeAllSessions } from "@/lib/auth/session"
 import { generateTempPassword } from "@/lib/auth/tokens"
 import { db } from "@/lib/db"
 import type { Role, UserStatus } from "@/lib/generated/prisma/enums"
+import { ensureMailbox } from "@/lib/mail-server/mailbox"
 
 const TEAM_PATH = "/settings/team"
 
@@ -83,6 +84,10 @@ export async function createMember(_prev: FormState, formData: FormData): Promis
     entity: { type: "user", id: user.id },
     metadata: { email, name, role },
   })
+  // Provision a private mailbox for team members (not clients)
+  if (role !== "CLIENT") {
+    await ensureMailbox(user.id, name)
+  }
   revalidatePath(TEAM_PATH)
   revalidatePath("/team")
   return {
