@@ -75,6 +75,7 @@ model User {
   whiteboardVersions WhiteboardVersion[]   @relation("WhiteboardVersionCreator")
   whiteboardMemberships WhiteboardMember[]
   whiteboardComments WhiteboardComment[]
+  mailbox           Mailbox?
 
   @@index([role, status])
   @@index([clientId])
@@ -290,6 +291,7 @@ model Lead {
   reminders Reminder[]
   client    Client?
   proposals Proposal[]
+  emailThreads EmailThread[]
 
   @@index([stageId, position])
   @@index([ownerId])
@@ -376,6 +378,7 @@ model Client {
   proposals Proposal[]
   invoices  Invoice[]
   expenses  Expense[]
+  emailThreads EmailThread[]
 
   @@index([name])
   @@map("client")
@@ -610,6 +613,8 @@ model StoredFile {
   /// Company file visible to Owners and Admins only.
   restricted       Boolean  @default(false)
   createdAt        DateTime @default(now())
+
+  emailAttachments EmailAttachment[]
 
   @@index([clientId, createdAt])
   @@index([projectId])
@@ -978,4 +983,96 @@ model WhiteboardVersion {
   @@unique([boardId, revision])
   @@index([boardId, createdAt])
   @@map("whiteboard_version")
+}
+
+// ─── Email (Phase 9) ────────────────────────────────────────────────────────
+
+enum EmailDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum EmailFolder {
+  INBOX
+  SENT
+  DRAFTS
+  TRASH
+  ARCHIVE
+}
+
+model Mailbox {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address   String   @unique @db.VarChar(254)
+  createdAt DateTime @default(now())
+
+  emails Email[]
+
+  @@map("mailbox")
+}
+
+model EmailThread {
+  id             String   @id @default(cuid())
+  subject        String   @db.VarChar(255)
+  linkedLeadId   String?
+  linkedClientId String?
+  linkedLead     Lead?    @relation(fields: [linkedLeadId], references: [id], onDelete: SetNull)
+  linkedClient   Client?  @relation(fields: [linkedClientId], references: [id], onDelete: SetNull)
+  lastEmailAt    DateTime
+  createdAt      DateTime @default(now())
+
+  emails Email[]
+
+  @@index([linkedLeadId])
+  @@index([linkedClientId])
+  @@map("email_thread")
+}
+
+model Email {
+  id            String         @id @default(cuid())
+  messageId     String         @unique @db.VarChar(512)
+  threadId      String
+  thread        EmailThread    @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  mailboxId     String
+  mailbox       Mailbox        @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  direction     EmailDirection
+  folder        EmailFolder    @default(INBOX)
+  fromAddress   String         @db.VarChar(254)
+  fromName      String?        @db.VarChar(120)
+  toAddresses   Json
+  ccAddresses   Json           @default("[]")
+  bccAddresses  Json           @default("[]")
+  subject       String         @db.VarChar(255)
+  bodyHtml      String?        @db.LongText
+  bodyText      String?        @db.LongText
+  inReplyToId   String?
+  inReplyTo     Email?         @relation("EmailReplies", fields: [inReplyToId], references: [id], onDelete: SetNull)
+  replies       Email[]        @relation("EmailReplies")
+  read          Boolean        @default(false)
+  starred       Boolean        @default(false)
+  sentAt        DateTime?
+  receivedAt    DateTime?
+  deletedAt     DateTime?
+  createdAt     DateTime       @default(now())
+
+  attachments EmailAttachment[]
+
+  @@index([mailboxId, folder, receivedAt])
+  @@index([threadId, receivedAt])
+  @@map("email")
+}
+
+model EmailAttachment {
+  id           String     @id @default(cuid())
+  emailId      String
+  email        Email      @relation(fields: [emailId], references: [id], onDelete: Cascade)
+  storedFileId String
+  storedFile   StoredFile @relation(fields: [storedFileId], references: [id], onDelete: Cascade)
+  filename     String     @db.VarChar(255)
+  mimeType     String     @db.VarChar(127)
+  size         BigInt
+
+  @@index([emailId])
+  @@map("email_attachment")
 }
