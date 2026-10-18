@@ -1,0 +1,11 @@
+{
+  "name": "klyron-mail",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Haraka SMTP server for Klyron CRM",
+  "main": "index.js",
+  "dependencies": {
+    "Haraka": "^3.0.4",
+    "mailparser": "^3.7.1"
+  }
+}
