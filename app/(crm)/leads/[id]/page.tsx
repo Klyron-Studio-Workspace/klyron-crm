@@ -17,6 +17,8 @@ import { formatDate } from "@/lib/format"
 import { lostReasonLabel, sourceLabels } from "@/lib/leads/constants"
 import { getAssignableMembers, getLeadDetail, getServices, getStages, leadScope } from "@/lib/leads/queries"
 import { formatMoney } from "@/lib/money"
+import { getLeadEmails } from "@/lib/actions/mail"
+import { EmailsTab } from "@/components/mail/emails-tab"
 
 export const metadata: Metadata = { title: "Lead" }
 
@@ -35,6 +37,7 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
   const lead = await getLeadDetail(user, id)
   if (!lead) notFound()
 
+  const emails = await getLeadEmails(lead.id)
   const [canWrite, canConvert, stages, members, services, scope, canFinance, canFinanceWrite] = await Promise.all([
     can(user, "leads", "WRITE"),
     can(user, "clients", "WRITE"),
@@ -137,6 +140,18 @@ export default async function LeadPage({ params }: PageProps<"/leads/[id]">) {
                 members={members}
                 currentUserId={user.id}
                 canWrite={canWrite}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle className="text-base font-semibold">Emails</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EmailsTab
+                emails={emails as never}
+                composeHref={`/mail?compose=1&to=${encodeURIComponent(lead.email ?? "")}`}
               />
             </CardContent>
           </Card>

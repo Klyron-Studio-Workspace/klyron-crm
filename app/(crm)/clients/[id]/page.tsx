@@ -16,6 +16,8 @@ import { formatDate, formatDateTime, formatRelative } from "@/lib/format"
 import { getAssignableMembers, getServices } from "@/lib/leads/queries"
 import { getProjects } from "@/lib/projects/queries"
 import { ensureClientChannel } from "@/lib/chat/access"
+import { getClientEmails } from "@/lib/actions/mail"
+import { EmailsTab } from "@/components/mail/emails-tab"
 
 export const metadata: Metadata = { title: "Client" }
 
@@ -55,6 +57,7 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
   })
   if (!client) notFound()
 
+  const emails = await getClientEmails(client.id)
   const [canChat, canFiles, canFinance, canFinanceWrite] = await Promise.all([
     can(user, "chat", "READ"),
     can(user, "files", "READ"),
@@ -197,6 +200,18 @@ export default async function ClientPage({ params }: PageProps<"/clients/[id]">)
           </Card>
 
           {canFinance && <BillingCard clientId={client.id} canWrite={canFinanceWrite} />}
+
+          <Card>
+            <CardHeader className="border-b">
+              <CardTitle className="text-base font-semibold">Emails</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <EmailsTab
+                emails={emails as never}
+                composeHref={`/mail?compose=1&to=${encodeURIComponent(client.email ?? "")}`}
+              />
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader className="border-b">
