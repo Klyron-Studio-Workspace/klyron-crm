@@ -23,3 +23,4 @@ export type RealtimeEvent =
   | { type: "whiteboard.presence"; boardId: string; userId: string; name: string; x: number | null; y: number | null; selected: string[] }
   | { type: "whiteboard.comment"; boardId: string; comment: { id: string; body: string; x: number; y: number; author: string; createdAt: string; resolvedAt: string | null } }
   | { type: "whiteboard.comment.resolve"; boardId: string; commentId: string }
+  | { type: "mail.inbound"; mailboxId: string; emailId: string; fromName: string | null; subject: string }
