@@ -15,5 +15,16 @@ module.exports = {
       max_memory_restart: "1G",
       time: true,
     },
+    {
+      name: "klyron-mail",
+      cwd: __dirname + "/..",
+      script: "haraka/node_modules/.bin/haraka",
+      args: "-c haraka",
+      exec_mode: "fork",
+      instances: 1,
+      env: { NODE_ENV: "production" },
+      max_memory_restart: "512M",
+      time: true,
+    },
   ],
 }
