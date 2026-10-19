@@ -1,5 +1,7 @@
+import { Suspense } from "react"
 import { countUnread } from "@/lib/actions/mail"
 import { FolderNav } from "@/components/mail/folder-nav"
+import { ComposeTrigger } from "@/components/mail/compose-trigger"
 
 export default async function MailLayout({ children }: { children: React.ReactNode }) {
   const unread = await countUnread()
@@ -16,6 +18,11 @@ export default async function MailLayout({ children }: { children: React.ReactNo
 
       {/* Centre + right panels */}
       <div className="flex flex-1 overflow-hidden">{children}</div>
+
+      {/* Compose dialog — client-side, reads ?compose=1 from URL */}
+      <Suspense>
+        <ComposeTrigger />
+      </Suspense>
     </div>
   )
 }
