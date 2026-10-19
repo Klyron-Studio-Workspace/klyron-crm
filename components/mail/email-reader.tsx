@@ -1,9 +1,10 @@
 "use client"
 
-import { ArchiveIcon, Trash2Icon, ReplyIcon } from "lucide-react"
+import { ArchiveIcon, Trash2Icon, ReplyIcon, MailIcon } from "lucide-react"
 import { moveEmail } from "@/lib/actions/mail"
 import { useState } from "react"
 import { ComposeDialog } from "@/components/mail/compose-dialog"
+import { Button } from "@/components/ui/button"
 
 type FullEmail = {
   id: string
@@ -29,7 +30,10 @@ function relativeTime(date: Date): string {
   if (hrs < 24) return `${hrs}h ago`
   const days = Math.floor(hrs / 24)
   if (days < 7) return `${days}d ago`
-  return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date)
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short", day: "numeric", year: "numeric",
+    hour: "numeric", minute: "2-digit",
+  }).format(date)
 }
 
 export function EmailReader({ email }: Props) {
@@ -37,8 +41,11 @@ export function EmailReader({ email }: Props) {
 
   if (!email) {
     return (
-      <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
-        Select a message to read
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+        <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+          <MailIcon className="size-5 text-muted-foreground" />
+        </div>
+        <p className="text-sm text-muted-foreground">Select a message to read</p>
       </div>
     )
   }
@@ -46,48 +53,80 @@ export function EmailReader({ email }: Props) {
   const date = email.receivedAt ?? email.sentAt
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden border-l">
-      <div className="flex items-start justify-between gap-4 border-b p-4">
-        <div className="min-w-0">
-          <h2 className="text-base font-semibold truncate">{email.subject}</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {email.fromName ? `${email.fromName} <${email.fromAddress}>` : email.fromAddress}
-            {date && ` · ${relativeTime(new Date(date))}`}
-          </p>
+    <div className="flex flex-1 flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex h-12 shrink-0 items-center justify-between gap-4 border-b border-border px-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-sm font-semibold">{email.subject}</h2>
         </div>
-        <div className="flex shrink-0 gap-2">
-          <button
-            onClick={() => setComposing(true)}
-            className="flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            <ReplyIcon className="size-3.5" /> Reply
-          </button>
-          <button
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setComposing(true)} className="gap-1.5">
+            <ReplyIcon className="size-4" />
+            Reply
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => moveEmail(email.id, "ARCHIVE")}
-            className="rounded-md border p-1.5 hover:bg-muted"
             title="Archive"
           >
             <ArchiveIcon className="size-4" />
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={() => moveEmail(email.id, "TRASH")}
-            className="rounded-md border p-1.5 hover:bg-muted text-destructive"
-            title="Trash"
+            title="Move to trash"
+            className="text-destructive hover:text-destructive"
           >
             <Trash2Icon className="size-4" />
-          </button>
+          </Button>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4">
+      {/* Sender meta */}
+      <div className="border-b border-border px-6 py-4">
+        <div className="flex items-start gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-semibold text-muted-foreground">
+            {(email.fromName ?? email.fromAddress).slice(0, 2).toUpperCase()}
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-medium leading-tight">
+              {email.fromName ?? email.fromAddress}
+            </p>
+            {email.fromName && (
+              <p className="text-xs text-muted-foreground">{email.fromAddress}</p>
+            )}
+            {date && (
+              <p className="mt-0.5 text-xs text-muted-foreground">{relativeTime(new Date(date))}</p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 overflow-y-auto px-6 py-5">
         {email.bodyHtml ? (
           <div
-            className="prose prose-sm max-w-none"
+            className="prose prose-sm max-w-none text-foreground [&_a]:text-primary [&_a]:underline"
             dangerouslySetInnerHTML={{ __html: email.bodyHtml }}
           />
         ) : (
-          <pre className="whitespace-pre-wrap text-sm font-sans">{email.bodyText}</pre>
+          <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground">
+            {email.bodyText}
+          </pre>
         )}
+      </div>
+
+      {/* Inline reply hint */}
+      <div className="border-t border-border px-6 py-3">
+        <button
+          onClick={() => setComposing(true)}
+          className="flex w-full items-center gap-3 rounded-lg border border-border px-4 py-2.5 text-left text-sm text-muted-foreground transition-colors hover:bg-muted"
+        >
+          <ReplyIcon className="size-4 shrink-0" />
+          Reply to {email.fromName ?? email.fromAddress}…
+        </button>
       </div>
 
       {composing && (

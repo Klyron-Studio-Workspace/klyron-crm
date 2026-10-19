@@ -5,12 +5,14 @@ import { EmailReader } from "@/components/mail/email-reader"
 import type { EmailFolder } from "@/lib/generated/prisma/enums"
 
 type Props = {
-  searchParams: Promise<{ folder?: string; id?: string; compose?: string }>
+  searchParams: Promise<{ folder?: string; id?: string }>
 }
 
 export default async function MailPage({ searchParams }: Props) {
   const { folder, id } = await searchParams
   const activeFolder = (folder as EmailFolder) || "INBOX"
+
+  const folderLabel = activeFolder.charAt(0) + activeFolder.slice(1).toLowerCase()
 
   const [emails, activeEmail] = await Promise.all([
     listEmails(activeFolder),
@@ -20,15 +22,9 @@ export default async function MailPage({ searchParams }: Props) {
   return (
     <>
       {/* Centre panel — thread list */}
-      <div className="flex w-72 shrink-0 flex-col border-r">
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <h3 className="text-sm font-semibold capitalize">{activeFolder.toLowerCase()}</h3>
-          <a
-            href="/mail?compose=1"
-            className="rounded-md bg-[#DC143C] px-3 py-1.5 text-xs font-medium text-white"
-          >
-            Compose
-          </a>
+      <div className="flex w-72 shrink-0 flex-col border-r border-border">
+        <div className="flex h-12 shrink-0 items-center border-b border-border px-4">
+          <h3 className="text-sm font-semibold">{folderLabel}</h3>
         </div>
         <Suspense>
           <ThreadList
