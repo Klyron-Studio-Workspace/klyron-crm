@@ -7,7 +7,7 @@ export default async function MailLayout({ children }: { children: React.ReactNo
   const unread = await countUnread()
 
   return (
-    <div className="flex h-[calc(100vh-var(--header-height,56px))] overflow-hidden">
+    <div className="-mx-6 -my-6 flex h-[calc(100svh-3.5rem)] overflow-hidden lg:-mx-8 lg:-my-8">
       {/* Left panel — folder nav */}
       <aside className="hidden w-56 shrink-0 border-r flex-col md:flex">
         <div className="border-b p-4">
