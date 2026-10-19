@@ -3,8 +3,9 @@
 import { useActionState } from "react"
 import { XIcon, SendIcon } from "lucide-react"
 import { sendMailAction } from "@/lib/actions/mail"
+import type { FormState } from "@/lib/actions/state"
 
-const initial = { values: {} }
+const initial: NonNullable<FormState> = { values: {} }
 
 type Props = {
   defaultTo?: string
@@ -14,7 +15,8 @@ type Props = {
 }
 
 export function ComposeDialog({ defaultTo = "", defaultSubject = "", inReplyToMessageId, onClose }: Props) {
-  const [state, action, pending] = useActionState(sendMailAction, initial)
+  const [_state, action, pending] = useActionState(sendMailAction, initial)
+  const state = _state ?? initial
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-end p-6">

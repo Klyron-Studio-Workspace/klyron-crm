@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Haraka is a CJS runtime; require() is required
+    "haraka/**",
   ]),
 ]);
 

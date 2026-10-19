@@ -84,10 +84,8 @@ export async function createMember(_prev: FormState, formData: FormData): Promis
     entity: { type: "user", id: user.id },
     metadata: { email, name, role },
   })
-  // Provision a private mailbox for team members (not clients)
-  if (role !== "CLIENT") {
-    await ensureMailbox(user.id, name)
-  }
+  // Provision a private mailbox for the new team member
+  await ensureMailbox(user.id, name)
   revalidatePath(TEAM_PATH)
   revalidatePath("/team")
   return {
