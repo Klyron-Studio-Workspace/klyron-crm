@@ -32,7 +32,8 @@ export default async function CrmLayout({ children }: LayoutProps<"/">) {
       <AppSidebar hiddenHrefs={hiddenHrefs} unreadChat={unreadChat} currentUserId={user.id} />
       <SidebarInset>
         <Topbar user={{ name: user.name, email: user.email, role: user.role }} notifications={notifications} hiddenHrefs={hiddenHrefs} />
-        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-6 py-6 lg:px-8 lg:py-8">
+        {/* Pages marked data-full-bleed (mail, chat) drop the width cap and padding to sit edge to edge */}
+        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-6 py-6 lg:px-8 lg:py-8 has-[[data-full-bleed]]:max-w-none has-[[data-full-bleed]]:p-0">
           {children}
         </div>
       </SidebarInset>

@@ -51,7 +51,7 @@ export default async function ChatPage({ params }: PageProps<"/chat/[channelId]"
 
   return (
     // Full-height chat inside the page container.
-    <div className="-mx-6 -my-6 grid h-[calc(100svh-3.5rem)] grid-cols-1 border-border md:grid-cols-[17rem_minmax(0,1fr)] lg:-mx-8 lg:-my-8">
+    <div data-full-bleed className="grid h-[calc(100svh-3.5rem)] grid-cols-1 border-border md:grid-cols-[17rem_minmax(0,1fr)]">
       <aside className="hidden min-h-0 border-r border-border bg-sidebar md:flex md:flex-col">
         <ChannelList {...listProps} />
       </aside>

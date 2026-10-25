@@ -4,6 +4,14 @@ import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { InboxIcon, SendIcon, FileEditIcon, ArchiveIcon, Trash2Icon, PencilLineIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+} from "@/components/ui/sidebar"
 
 const folders = [
   { label: "Inbox",   value: "INBOX",   icon: InboxIcon },
@@ -15,45 +23,46 @@ const folders = [
 
 type Props = { unread: number }
 
+/** Mail folders, built from the same sidebar primitives as the main workspace nav. */
 export function FolderNav({ unread }: Props) {
   const searchParams = useSearchParams()
   const activeFolder = searchParams.get("folder") ?? "INBOX"
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Compose button */}
-      <div className="p-3 border-b border-border">
-        <Button nativeButton={false} render={<Link href="/mail?compose=1" />} className="w-full gap-2">
-          <PencilLineIcon className="size-4" />
+    <>
+      <div className="flex h-12 shrink-0 items-center justify-between border-b border-sidebar-border px-3">
+        <span className="text-sm font-semibold tracking-tight">Mail</span>
+        <Button nativeButton={false} size="sm" render={<Link href="/mail?compose=1" />}>
+          <PencilLineIcon />
           Compose
         </Button>
       </div>
 
-      {/* Folder list */}
-      <nav className="flex flex-col gap-0.5 p-2 flex-1">
-        {folders.map(({ label, value, icon: Icon }) => {
-          const isActive = activeFolder === value
-          return (
-            <Link
-              key={value}
-              href={`/mail?folder=${value}`}
-              className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
-                isActive
-                  ? "bg-primary/10 text-primary font-medium"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              <Icon className="size-4 shrink-0" />
-              <span className="flex-1">{label}</span>
-              {value === "INBOX" && unread > 0 && (
-                <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold text-white leading-none">
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              )}
-            </Link>
-          )
-        })}
-      </nav>
-    </div>
+      <SidebarGroup className="flex-1 overflow-y-auto">
+        <SidebarGroupLabel>Folders</SidebarGroupLabel>
+        <SidebarMenu>
+          {folders.map(({ label, value, icon: Icon }) => {
+            const isActive = activeFolder === value
+            return (
+              <SidebarMenuItem key={value}>
+                <SidebarMenuButton
+                  isActive={isActive}
+                  render={<Link href={`/mail?folder=${value}`} aria-current={isActive ? "page" : undefined} />}
+                >
+                  <Icon />
+                  <span>{label}</span>
+                </SidebarMenuButton>
+                {value === "INBOX" && unread > 0 && (
+                  <SidebarMenuBadge className="bg-primary text-primary-foreground">
+                    {unread > 99 ? "99+" : unread}
+                    <span className="sr-only"> unread emails</span>
+                  </SidebarMenuBadge>
+                )}
+              </SidebarMenuItem>
+            )
+          })}
+        </SidebarMenu>
+      </SidebarGroup>
+    </>
   )
 }
