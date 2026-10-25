@@ -1,11 +1,14 @@
 # Klyron Studio CRM
 
-An internal CRM for **Klyron Studio** — a design & development agency. The team runs the whole business from it: leads → clients → projects → chat & calls → files → proposals & invoices. Clients get their own **portal** to track projects, message the studio, share files, and pay invoices.
+An all-in-one internal CRM for **Klyron Studio**, a design & development agency. The team runs the whole business from one app: **leads → clients → projects → chat, calls & email → files & whiteboards → proposals & invoices**, with **Klyron AI** built into every step. Clients get their own **portal** to track projects, message the studio, join calls, share files, accept proposals, and pay invoices.
+
+Self-hosted on a single VPS. No Docker, no third-party auth, no SaaS dependencies except the Groq AI API.
 
 ---
 
 ## Table of Contents
 
+- [Highlights](#highlights)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
@@ -14,8 +17,25 @@ An internal CRM for **Klyron Studio** — a design & development agency. The tea
 - [Features](#features)
 - [User Roles](#user-roles)
 - [Routes](#routes)
+- [MCP Server](#mcp-server)
 - [Deployment](#deployment)
 - [Known Limitations](#known-limitations)
+- [Roadmap](#roadmap)
+
+---
+
+## Highlights
+
+- **Sales pipeline** — drag-and-drop Kanban, follow-up reminders, AI lead scoring & follow-up drafts
+- **Projects** — milestones, task boards, AI health check (On track / At risk / Blocked) with risks & actions
+- **Chat** — team channels, client chats, DMs, private groups, voice notes, @mentions, `@Klyron AI`
+- **Video calls** — self-hosted LiveKit, live captions (incl. Urdu/Arabic), AI meeting notes
+- **Built-in email** — every team member gets an `@klyronstudio.com` inbox; mail auto-links to leads & clients
+- **Finance** — proposals (AI-drafted), invoices, partial payments, expenses, auto reminders, public pay/accept links
+- **Whiteboards** — infinite canvas with live multiplayer cursors, comments, version history, templates
+- **Client portal** — clients see their projects, chat, files, calls, and billing
+- **MCP server** — external AI agents can read the CRM and edit whiteboards through a token-secured endpoint
+- **Security** — Argon2id, DB sessions, rate limiting, lockout, editable role × module permissions, full audit log
 
 ---
 
@@ -24,23 +44,28 @@ An internal CRM for **Klyron Studio** — a design & development agency. The tea
 | Area | Choice |
 |---|---|
 | Framework | Next.js 16.3.8 (App Router, Turbopack, Server Actions) |
-| UI | React 19, Tailwind v4, shadcn Base UI, lucide icons |
-| Database | MySQL / MariaDB + Prisma 7.10.0 |
+| UI | React 19, Tailwind v4, shadcn (Base UI), lucide icons |
+| Database | MySQL / MariaDB + Prisma 7.10.0 (`@prisma/adapter-mariadb`) |
 | Auth | Custom — Argon2id, DB sessions, rate limiting, lockout |
-| Realtime | Built-in Server-Sent Events (`/api/events`) |
-| Files | Local disk, `sharp` WebP thumbnails, Range requests |
-| Email | nodemailer over SMTP |
+| Realtime | Built-in Server-Sent Events (`/api/events`) with an in-process bus |
+| Files | Local disk, `sharp` WebP thumbnails, Range requests, optional Nginx X-Accel-Redirect |
+| System email | nodemailer over SMTP (invoices, proposals, reminders, password resets) |
+| Team mailboxes | Haraka SMTP server (separate PM2 process) + `mailparser`, `sanitize-html` |
 | Video calls | Self-hosted LiveKit |
-| AI | Groq API — meeting notes + `@Klyron AI` in chat |
+| AI | Groq API (`openai/gpt-oss-120b` by default) |
+| Validation | zod |
 | Hosting | VPS, PM2 + Nginx (no Docker) |
 
 **Key architectural decisions:**
 - `proxy.ts` replaces Next.js middleware for auth + request context
 - Single app process required — SSE bus and scheduler are in-memory
-- Money is always `Decimal(12,2)`, calculated in integer cents
+- Money is always `Decimal(12,2)`, calculated in integer cents; totals per currency, never converted
 - Fractional float positions for leads and tasks (only the moved item updates on drag)
 - One unified `Event` table powers the audit log and every activity timeline
 - Prisma client generated to `lib/generated/prisma` (not the default location)
+- Every table has a lowercase `@@map` name (XAMPP on Windows is case-insensitive; Linux isn't)
+
+**Design language:** white theme, crimson `#DC143C` used sparingly, Inter Tight (headings), Inter (body), Cormorant Garamond (editorial moments). Live UI kit at `/ui-kit`.
 
 ---
 
@@ -49,47 +74,43 @@ An internal CRM for **Klyron Studio** — a design & development agency. The tea
 ```
 klyron-crm/
 ├── app/
-│   ├── (crm)/              # Team-facing app (dashboard, leads, clients, projects…)
+│   ├── (crm)/              # Team app (dashboard, leads, clients, projects, finance, chat, calls, mail, files, team, settings)
 │   ├── (canvas)/           # Full-screen whiteboard editor
 │   ├── (public)/           # Public invoice & proposal pages (no login)
 │   ├── portal/             # Client portal
-│   ├── login/              # Auth pages
-│   ├── forgot-password/
-│   ├── reset-password/
-│   ├── change-password/
-│   └── api/                # SSE, file uploads, call tokens, LiveKit webhook
-├── components/             # Feature UI components
+│   ├── login/ forgot-password/ reset-password/ change-password/
+│   └── api/                # SSE, files, call tokens & transcripts, LiveKit webhook, MCP
+├── components/             # Feature UI (leads, projects, chat, calls, mail, finance, files, layout, ui…)
 ├── hooks/                  # useVoiceRecorder, useSpeechTranscription, useMobile, useFileMeta
 ├── lib/
 │   ├── actions/            # Server actions (mutations)
 │   ├── ai/                 # Groq rate limiting
 │   ├── auth/               # Session, password, permissions, rate limit, tokens
 │   ├── calls/              # LiveKit lifecycle, AI meeting notes
-│   ├── chat/               # Messaging, @mentions, Groq AI replies
+│   ├── chat/               # Messaging, @mentions, Klyron AI replies
 │   ├── files/              # Storage, upload, access
-│   ├── finance/            # Invoices, proposals, math, delivery
-│   ├── leads/              # Pipeline queries, AI scoring (future)
-│   ├── projects/           # Project queries, AI summaries (future)
+│   ├── finance/            # Invoices, proposals, math, delivery, AI proposal drafting
+│   ├── leads/              # Pipeline queries, AI lead insights
+│   ├── projects/           # Project queries, AI project insights
+│   ├── mail-server/        # Mailboxes, inbound delivery, threading, lead/client linking, outbound
 │   ├── realtime/           # SSE bus + event type definitions
 │   ├── whiteboard/         # Document model, geometry, atomic operations
-│   ├── mcp/                # MCP server (Phase 7, stub)
+│   ├── mcp/                # MCP server (tools for external AI agents)
 │   ├── generated/prisma/   # Auto-generated Prisma client (do not edit)
-│   ├── db.ts               # Prisma singleton
-│   ├── audit.ts            # logEvent()
-│   ├── scheduler.ts        # Background jobs
-│   ├── mail.ts             # SMTP helpers
-│   ├── money.ts            # Currency utilities
-│   ├── format.ts           # Dates, currency, names (timezone-aware)
-│   └── notifications.ts    # In-app + email alerts
+│   ├── db.ts  audit.ts  scheduler.ts  mail.ts  money.ts  format.ts  notifications.ts  navigation.ts
+├── haraka/                 # Haraka SMTP server: config + klyron_deliver plugin (own package.json)
 ├── prisma/
-│   ├── schema.prisma       # Full data model (36 models, 22 enums)
+│   ├── schema.prisma       # Full data model (40 models, 22 enums)
 │   ├── seed.ts             # Creates Owner, default stages & services
-│   └── migrations/         # Migration history
+│   └── migrations/
+├── scripts/dev.mjs         # Starts LiveKit + Next.js together in dev
+├── deploy/                 # PM2, Nginx, LiveKit example configs
+├── docs/                   # Design specs, implementation plans, promo video brief
 ├── prisma.config.ts        # Prisma CLI config (loads .env / .env.local)
 ├── instrumentation.ts      # Next.js hook → starts scheduler
 ├── proxy.ts                # Auth + request context (replaces middleware)
-├── CONTEXT.md              # Full project context (read this when working on the codebase)
-└── deploy/                 # PM2, Nginx, LiveKit example configs
+├── CONTEXT.md              # Full project context for contributors
+└── WHITEBOARD_ROADMAP.md   # Whiteboard feature checklist
 ```
 
 ---
@@ -116,23 +137,35 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and sign in with the email + password from `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` in your `.env`.
+Open [http://localhost:3000](http://localhost:3000) and sign in with `SUPERADMIN_EMAIL` / `SUPERADMIN_PASSWORD` from your `.env`.
 
-> **Note:** `npm run dev` starts both LiveKit and Next.js. Press Ctrl+C to stop both. Use `npm run dev:next` to run Next.js alone (no video calls).
+> `npm run dev` starts both LiveKit and Next.js; Ctrl+C stops both. Use `npm run dev:next` to run Next.js alone (no video calls).
 
-**Other scripts:**
+**Team mailboxes (optional in dev):** the Haraka server has its own dependencies.
+
+```bash
+cd haraka && npm install && cd ..
+haraka/node_modules/.bin/haraka -c haraka
+```
+
+It listens on ports 25 / 587 and needs DNS (MX, SPF, DKIM, DMARC, PTR) to receive real mail — see [Deployment](#deployment).
+
+**Scripts:**
 
 | Script | What it does |
 |---|---|
+| `npm run dev` | LiveKit + Next.js dev server |
+| `npm run dev:next` | Next.js only |
 | `npm run build` | Production build |
 | `npm start` | Start the production server |
-| `npm run db:migrate` | Apply migrations (dev — creates shadow DB) |
+| `npm test` | Unit tests (AI result parsing, whiteboard document/geometry/operations) |
+| `npm run lint` | ESLint |
+| `npm run db:migrate` | Apply migrations (dev — uses shadow DB) |
 | `npm run db:deploy` | Apply migrations (production — no shadow DB) |
 | `npm run db:seed` | Seed Owner + defaults |
 | `npm run db:seed -- --reset-password` | Reset Owner password to `SUPERADMIN_PASSWORD` |
 | `npm run db:generate` | Regenerate Prisma client after schema changes |
 | `npm run db:studio` | Open Prisma Studio (DB GUI) |
-| `npm run lint` | Run ESLint |
 
 ---
 
@@ -149,6 +182,7 @@ Copy `.env.example` to `.env` and fill in:
 | Super admin | `SUPERADMIN_PASSWORD` | Owner's initial password |
 | App | `APP_URL` | Public base URL (`http://localhost:3000` in dev) |
 | App | `NEXT_PUBLIC_APP_TIME_ZONE` | IANA timezone (default: `Asia/Karachi`) |
+| App | `DISABLE_SCHEDULER` | Set to `1` to skip background jobs |
 | Files | `UPLOAD_DIR` | Absolute path for uploads (defaults to `./storage/uploads`) |
 | Files | `MAX_UPLOAD_MB` | Max file size in MB (default: `500`) |
 | Files | `NGINX_ACCEL_REDIRECT` | Set to `1` on VPS to serve files via Nginx X-Accel-Redirect |
@@ -159,20 +193,21 @@ Copy `.env.example` to `.env` and fill in:
 | Email | `SMTP_PASSWORD` | SMTP password or App Password |
 | Email | `MAIL_FROM` | Sender name + address |
 | Video | `LIVEKIT_URL` | `ws://localhost:7880` in dev, `wss://…` in prod |
+| Video | `LIVEKIT_HTTP_URL` | Optional; defaults to `LIVEKIT_URL` with `ws` → `http` |
 | Video | `LIVEKIT_API_KEY` | `devkey` in dev |
 | Video | `LIVEKIT_API_SECRET` | `secret` in dev |
 | AI | `GROQ_API_KEY` | From [console.groq.com](https://console.groq.com) |
-| AI | `GROQ_MODEL` | e.g. `openai/gpt-oss-120b` — check Groq dashboard if AI stops working |
+| AI | `GROQ_MODEL` | e.g. `openai/gpt-oss-120b` |
+| AI | `GROQ_CHAT_MODEL` | Optional model override for `@Klyron AI` in chat only |
 
-> Without SMTP configured, emails print to the server log in dev — that's fine for local work.
+> Without SMTP configured, emails print to the server log in dev — fine for local work.
+> The Haraka plugin reads `DATABASE_URL` from the same `.env` / `.env.local`.
 
 ---
 
 ## Database
 
-**Schema:** `prisma/schema.prisma` — 36 models, 22 enums, MySQL/MariaDB.
-
-All table names are lowercase (`@@map`) for cross-platform compatibility (XAMPP on Windows is case-insensitive; Linux isn't).
+**Schema:** `prisma/schema.prisma` — 40 models, 22 enums, MySQL/MariaDB.
 
 **Core models:**
 
@@ -187,90 +222,81 @@ All table names are lowercase (`@@map`) for cross-platform compatibility (XAMPP 
 | `Service` | Service catalog — linked to leads, proposals, invoices |
 | `Lead` | Prospect in the pipeline |
 | `Client` | Won lead converted to an ongoing relationship |
-| `Project` | Deliverable for a client (with milestones + tasks) |
-| `Channel` | Chat room (TEAM / CLIENT / DIRECT / GROUP) |
-| `Message` | Chat message (supports @mentions, files, voice notes) |
+| `Project` / `Milestone` / `Task` | Client deliverables |
+| `Channel` / `Message` | Chat rooms (TEAM / CLIENT / DIRECT / GROUP) and messages (mentions, files, voice) |
 | `StoredFile` | Uploaded file on disk |
 | `Notification` | In-app + email alert |
-| `Proposal` | Quote sent to a lead or client |
-| `Invoice` | Bill sent to a client |
-| `Payment` | Partial or full payment recorded against an invoice |
-| `Expense` | Cost logged against a client or project |
-| `Call` | Live video call with LiveKit |
-| `TranscriptSegment` | Finalized phrase from a speaker |
-| `Whiteboard` | Persistent visual board (Phase 8) |
+| `Proposal` / `Invoice` / `Payment` / `Expense` | Finance |
+| `Call` / `CallParticipant` / `TranscriptSegment` | LiveKit calls and transcripts |
+| `Whiteboard` / `WhiteboardMember` / `WhiteboardComment` / `WhiteboardVersion` | Boards, sharing, comments, history |
+| `Mailbox` / `EmailThread` / `Email` / `EmailAttachment` | Team inboxes, threads linked to leads/clients |
 
-**Migrations history:**
-
-| Migration | What it added |
-|---|---|
-| `init` | Auth, org, pipeline, leads, clients |
-| `projects` | Projects, milestones, tasks |
-| `chat_files_notifications` | Channels, messages, files, notifications |
-| `finance` | Proposals, invoices, payments, expenses |
-| `calls` | Calls, participants, transcript segments |
-| `chat_groups_voice_ai` | Private groups, voice notes, waveform, AI flag |
-| `company_files` | Company vault, folders, restricted flag |
-| `mcp_token` | MCP bearer token on OrgSettings |
-| `whiteboards` | Whiteboard model |
-| `whiteboard_versions` | Version history |
-| `whiteboard_collaboration` | Members + comments |
+**Migration history:** `init` → `projects` → `chat_files_notifications` → `finance` → `calls` → `chat_groups_voice_ai` → `company_files` → `mcp_token` → `whiteboards` → `whiteboard_versions` → `whiteboard_collaboration` → `email_server`.
 
 ---
 
 ## Features
 
 ### Phase 0 — Foundation
-Auth (login, forgot/reset password, forced password change, sessions, lockout), roles & permissions matrix (editable at runtime), audit log, org settings, theme & design system.
+Auth (login, forgot/reset password, forced password change, sessions, lockout), roles & permissions matrix (editable at runtime), audit log, org settings, theme & design system (`/ui-kit`).
 
 ### Phase 1 — Leads & Team
 - **Pipeline** board + list view, drag-and-drop stages (fractional positions)
 - **Stages** and **Services** catalog managed in Settings
-- Lead notes, follow-up reminders, lost reasons
-- Convert won lead → client
+- Lead notes, follow-up reminders, lost reasons, convert won lead → client
 - **Team management**: create members with email + password, set roles, disable, reset password
 
 ### Phase 2 — Clients, Projects & Portal
 - Clients with contacts, owner, notes, activity timeline
 - **Portal accounts** per client (separate login, limited view)
 - **Projects** with milestones, task board (status / priority / assignee / due date), team members
-- **Client portal** (`/portal`): project progress, chat, files, billing
+- **Client portal** (`/portal`): project progress, chat, files, calls, billing
 
 ### Phase 3 — Communication
-- **Chat**: team channels, one chat per client, direct messages, private groups
-- Live via SSE — typing indicators, unread badges, edit/delete messages, load history
+- **Chat**: team channels, one chat per client (shared with their portal), direct messages, private groups
+- Live via SSE — typing indicators, unread badges, edit/delete, load history
 - **@ mentions**: people, files, and `@Klyron AI`; mentioned people always get notified
-- **Klyron AI in chat**: replies using last 40 messages + text of mentioned files (team only, 6 req/person/min)
-- **Voice messages**: hold-to-record or tap for hands-free; waveform visualizer; WhatsApp-style player (seek, 1×/1.5×/2×)
-- **Files** (`/files`): client files + company document vault; optional folders; Restricted flag (Owner/Admin only); previewer for images, video, audio, PDF, CSV, JSON, code
+- **Klyron AI in chat**: replies using the last 40 messages + text of mentioned files (team only, 6 req/person/min)
+- **Voice messages**: hold-to-record or tap for hands-free; live visualizer; WhatsApp-style player (seek, 1×/1.5×/2×), up to 15 min
+- **Files** (`/files`): client files + company document vault; folders; Restricted flag (Owner/Admin only); previewer for images, video, audio, PDF, CSV, JSON, code
 - **Notifications**: in-app bell (live) + email
 
 ### Phase 4 — Finance
-- **Finance overview**: revenue, expenses, outstanding, overdue, 12-month chart, top clients
-- **Invoices**: line items from service catalog, discount + tax, record partial/full payments, send by email, void, auto payment reminders
-- **Proposals**: for leads or clients; recipient accepts/declines online; convert accepted proposal → invoice
+- **Overview**: collected this month, net after expenses, outstanding, overdue, 12-month revenue vs expenses chart, top clients
+- **Invoices**: line items from service catalog, discount + tax, partial/full payments, send by email, void, auto payment reminders (weekly ×3)
+- **Proposals**: for leads or clients; recipient accepts/declines online by typing their name; convert accepted proposal → invoice
 - **Expenses** with categories, linked to client/project
 - Public no-login pages for invoices (`/i/[token]`) and proposals (`/p/[token]`) — printable / Save as PDF
 - **Settings → Billing**: address, payment instructions, default tax, terms, number prefixes, auto-reminders
 
 ### Phase 5 — Video Calls with AI Notes
-- "Call" button in every conversation (team, groups, DMs, client chat)
+- "Call" button in every conversation (team, groups, DMs, client chat, portal)
 - Self-hosted LiveKit; join tokens valid 10 minutes, one room per conversation
-- **Live transcription** in each person's browser (Chrome/Edge; per-person opt-out; supports Urdu/Arabic)
-- Live captions visible to all participants
-- **AI meeting notes** (Groq) after the call: summary, decisions, action items — editable and regeneratable
-- **Calls page** (`/calls`) with history; call card in chat shows Join → Notes flow
+- Custom call UI: video grid, screen share, captions, "End call for everyone"
+- **Live transcription** in each person's browser (Chrome/Edge; per-person opt-out; Urdu/Arabic supported) with live captions for everyone
+- **AI meeting notes** after the call: summary, decisions, action items — editable and regeneratable
+- **Calls page** (`/calls`) with history; call card in chat shows Join → Notes
 
-### Phase 8 — Whiteboards (In Progress)
-Persistent visual boards with an infinite SVG canvas, pan/zoom, shapes, connectors, text, sticky notes, selection, drag, colors, keyboard shortcuts, undo/redo, autosave, and collaboration.
+### Phase 6 — AI Layer
+- **Lead insights**: 0–100 lead score with rationale, suggested next step, and a ready-to-send follow-up draft
+- **Project insights**: status summary, health (On track / At risk / Blocked), risks each paired with an action
+- **Proposal drafting**: AI writes the title, introduction, and terms from the lead/client history and selected services
+
+### Phase 7 — MCP Server
+Token-secured `POST /api/mcp` endpoint so external AI agents (Claude, etc.) can work with the CRM. See [MCP Server](#mcp-server).
+
+### Phase 8 — Whiteboards
+Infinite SVG canvas: shapes, connectors, text, sticky notes, resize/rotate, group, align & distribute, smart guides & snapping, lock/hide, layers, mini-map, pinch zoom. Autosave with retry, conflict recovery, version history. **Live collaboration** over SSE — presence avatars, remote cursors & selections, comments & mentions, per-board sharing. Favorites, search, thumbnails, templates.
+
+### Phase 9 — Built-in Email
+- Every team member gets a private `@klyronstudio.com` mailbox, provisioned automatically when they're created
+- `/mail`: folders (Inbox, Sent, Drafts, Archive, Trash), threaded conversations, star, move, compose & reply
+- Inbound mail is received by Haraka, parsed, threaded by subject/References, and **auto-linked to matching leads and clients**
+- **Emails tab** on every lead and client page shows the full email history next to notes, calls, and chat
+- Live "new mail" notification via SSE; HTML bodies sanitized before display
 
 ### Background Scheduler
-Runs via `instrumentation.ts` → `lib/scheduler.ts`:
-- Follow-up reminders (notify assignee at due time)
-- Overdue invoice payment reminders (automatic weekly ×3)
-- Empty call cleanup
-- Orphan upload cleanup
-- Pending meeting notes generation
+Runs via `instrumentation.ts` → `lib/scheduler.ts`: follow-up reminders, overdue invoice reminders (weekly ×3), empty call cleanup, orphan upload cleanup, pending meeting notes generation.
 
 ---
 
@@ -289,31 +315,25 @@ Permissions are per-role per-module (NONE / READ / WRITE), editable by the Owner
 
 ## Routes
 
-### Team (`/`)
+### Team
 | Route | Page |
 |---|---|
 | `/` | Dashboard |
-| `/leads` | Pipeline board + list |
-| `/leads/[id]` | Lead detail |
-| `/clients` | Client list |
-| `/clients/[id]` | Client detail |
-| `/projects` | Project list |
-| `/projects/[id]` | Project board |
-| `/chat` | Channel browser |
-| `/chat/[channelId]` | Conversation |
-| `/calls` | Call history |
-| `/calls/[id]` | Call detail + notes |
-| `/files` | File browser (client files + company vault) |
+| `/leads`, `/leads/[id]` | Pipeline board + list, lead detail (AI insights, emails) |
+| `/clients`, `/clients/[id]` | Client list, client detail (emails, billing) |
+| `/projects`, `/projects/[id]` | Project list, project board (AI insights) |
 | `/finance` | Finance overview |
-| `/finance/invoices` | Invoice list |
-| `/finance/proposals` | Proposal list |
-| `/finance/expenses` | Expenses |
+| `/finance/invoices`, `/finance/proposals`, `/finance/expenses` | Finance documents |
+| `/chat`, `/chat/[channelId]` | Channels and conversations |
+| `/calls`, `/calls/[id]` | Call history, call detail + notes |
+| `/mail` | Team mailbox |
+| `/files` | File browser (client files + company vault) |
+| `/whiteboard`, `/whiteboard/[id]` | Board list, full-screen editor |
 | `/team` | Team directory |
-| `/settings` | Org settings, pipeline, services, billing, team, permissions, security, audit, MCP |
-| `/whiteboard` | Whiteboard list |
-| `/whiteboard/[id]` | Whiteboard editor (full-screen) |
+| `/settings/*` | General, pipeline, services, billing, team, permissions, security, audit, MCP |
+| `/ui-kit` | Design system reference |
 
-### Client Portal (`/portal`)
+### Client Portal
 | Route | Page |
 |---|---|
 | `/portal` | Projects overview |
@@ -326,71 +346,90 @@ Permissions are per-role per-module (NONE / READ / WRITE), editable by the Owner
 ### Public (no login)
 | Route | Page |
 |---|---|
-| `/i/[token]` | Invoice view / pay |
+| `/i/[token]` | Invoice view |
 | `/p/[token]` | Proposal view / accept / decline |
-| `/login` | Sign in |
-| `/forgot-password` | Request password reset |
-| `/reset-password/[token]` | Set new password |
+| `/login`, `/forgot-password`, `/reset-password/[token]` | Auth |
 
 ### API
 | Route | Purpose |
 |---|---|
-| `GET /api/events` | SSE stream (chat, notifications, realtime) |
+| `GET /api/events` | SSE stream (chat, notifications, mail, whiteboards) |
 | `POST /api/files` | Upload file |
-| `GET /api/files/[id]` | Download / metadata / thumbnail |
-| `DELETE /api/files/[id]` | Delete file |
-| `GET /api/calls/[id]/token` | Generate LiveKit join token |
+| `GET / DELETE /api/files/[id]` | Download / metadata / thumbnail / delete |
+| `GET /api/calls/[id]/token` | LiveKit join token |
 | `POST /api/calls/[id]/transcript` | Submit transcript segment |
 | `POST /api/livekit/webhook` | LiveKit room events |
+| `POST /api/mcp` | MCP server (bearer token) |
+
+---
+
+## MCP Server
+
+Generate a token in **Settings → MCP** (shown once; rotate if exposed) and point your MCP client at `POST {APP_URL}/api/mcp` with `Authorization: Bearer <token>`.
+
+| Tool | Type | What it does |
+|---|---|---|
+| `crm_overview` | read | Open leads, active projects, overdue invoices, due follow-ups |
+| `search_leads` | read | Search leads by contact or company |
+| `list_projects` | read | Recent projects, optional status filter |
+| `list_invoices` | read | Recent invoices with balances and due dates |
+| `add_lead_note` | write | Add an internal note to a lead |
+| `create_project_task` | write | Create a task in a project |
+| `whiteboard_capabilities` | read | Object model, coordinates, supported operations |
+| `list_whiteboards` / `get_whiteboard` | read | Find and read boards |
+| `create_whiteboard` | write | Create an empty board |
+| `edit_whiteboard` | write | Atomic add/update/delete of up to 100 objects (optimistic concurrency via `expectedUpdatedAt`) |
+
+All writes validate input and are recorded in the audit log as `MCP`.
 
 ---
 
 ## Deployment
 
-**Requirements:** VPS with Node.js 20+, MySQL/MariaDB, PM2, Nginx, and a separate LiveKit instance.
+**Requirements:** VPS with Node.js 20+, MySQL/MariaDB, PM2, Nginx, LiveKit, and DNS control of the mail domain.
 
 ```bash
 # On the server
 npm ci --omit=dev
+(cd haraka && npm ci)
 npm run build
-npm run db:deploy     # production migrations (no shadow DB needed)
+npm run db:deploy     # production migrations
 npm run db:seed       # first deploy only
-pm2 start deploy/ecosystem.config.cjs
+pm2 start deploy/ecosystem.config.cjs && pm2 save
 ```
 
-**Important:** Run **exactly one PM2 instance** — the SSE bus and scheduler live in-process and are not shared across processes.
+`deploy/ecosystem.config.cjs` runs two processes: `klyron-crm` (Next.js) and `klyron-mail` (Haraka). Run **exactly one instance** of `klyron-crm` — the SSE bus and scheduler live in-process.
 
 Config references in `deploy/`:
-- `ecosystem.config.cjs` — PM2 config (one instance, env vars)
 - `nginx.example.conf` — TLS, SSE location, upload limits, X-Accel-Redirect, LiveKit proxy
-- `livekit.example.yaml` — LiveKit config (open UDP 50000–60000 and TCP 7881, set webhook to `/api/livekit/webhook`)
+- `livekit.example.yaml` — open UDP 50000–60000 and TCP 7881, set webhook to `/api/livekit/webhook`
+
+**Mail DNS** (all required before sending real mail): `MX` → VPS IP, `SPF` (`v=spf1 ip4:<VPS_IP> ~all`), `DKIM` (TXT from Haraka key), `DMARC`, and `PTR` (`mail.klyronstudio.com` → VPS IP, set at the VPS provider). Open ports 25 and 587.
 
 **Production checklist:**
-- [ ] Set `NGINX_ACCEL_REDIRECT=1` for fast file serving via Nginx
-- [ ] Set a real absolute `UPLOAD_DIR` path
-- [ ] Configure SMTP for emails
-- [ ] Set real LiveKit URL + keys
-- [ ] Set `APP_URL` to your public domain
-- [ ] Fill Settings → Billing before sending invoices
-- [ ] Add prices in Settings → Services
-- [ ] Change the super admin password (Settings → Security)
+- [ ] `NGINX_ACCEL_REDIRECT=1` and a real absolute `UPLOAD_DIR`
+- [ ] SMTP configured for system emails
+- [ ] Real LiveKit URL + keys
+- [ ] `APP_URL` set to your public domain
+- [ ] Mail DNS records in place
+- [ ] Settings → Billing filled and prices added in Settings → Services
+- [ ] Super admin password changed (Settings → Security)
 
 ---
 
 ## Known Limitations
 
-- **Live transcription** only works in Chrome and Edge (Safari/Firefox users can join calls, just not be transcribed)
-- **Single process** required — cannot run multiple PM2 instances or use edge runtime
+- **Live transcription** only works in Chrome and Edge (others can join calls, just not be transcribed)
+- **Single process** required — no multiple PM2 instances or edge runtime
 - `npm audit` warnings come from dev tooling (Prisma CLI, ESLint, shadcn CLI), not runtime dependencies
-- **Groq model names change** — if AI features stop working with "model not found", update `GROQ_MODEL` in `.env` (current available models: `openai/gpt-oss-120b`, `openai/gpt-oss-20b`, `qwen/qwen3.8-27b`)
-- Meeting notes and transcripts are visible to clients on calls in their own chat — this is intentional but can be changed
+- **Groq model names change** — if AI stops working with "model not found", update `GROQ_MODEL`
+- Meeting notes and transcripts are visible to clients on calls in their own chat (intentional; can be changed)
 
 ---
 
 ## Roadmap
 
-- **Phase 6** — AI layer: lead scoring, project summaries, risk spotting, workspace Q&A, proposal drafting
-- **Phase 7** — MCP server: `POST /api/mcp` with read/write tools for external AI agents
-- **Phase 8** — Whiteboards (in progress)
+- Workspace-wide AI questions ("what's overdue this week?") and late-payment prediction
+- Auto-transcribe voice messages (Groq Whisper)
 - LeadForge import
 - Two-factor authentication (2FA)
