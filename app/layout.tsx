@@ -4,6 +4,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { themeScript } from "@/lib/theme-script";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -38,8 +39,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FFFFFF",
-  colorScheme: "light",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A0A0A" },
+  ],
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -52,7 +56,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         interTight.variable,
         cormorant.variable
       )}
+      /* The inline theme script toggles `dark` on <html> before hydration. */
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       {/* Browser extensions (e.g. ColorZilla) add attributes to <body>; ignore those mismatches. */}
       <body suppressHydrationWarning className="flex min-h-full flex-col">
         <TooltipProvider>

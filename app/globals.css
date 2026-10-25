@@ -4,11 +4,11 @@
 
 /*
  * Klyron Studio CRM — design system
- * Light-only theme. The `dark` variant is bound to a `.dark` class that is
- * never applied, so stray `dark:` utilities from future shadcn components
- * stay inert instead of following the OS color scheme.
+ * Light theme by default; `.dark` on <html> (set by lib/theme.ts) switches to
+ * dark. `.light` pins a subtree to the light palette (whiteboard canvas,
+ * public invoice/proposal documents) and switches off `dark:` utilities there.
  */
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:where(.dark, .dark *):not(.light, .light *));
 
 @theme inline {
   /* Typography */
@@ -103,7 +103,8 @@
   }
 }
 
-:root {
+:root,
+.light {
   /* Brand */
   --brand-crimson: #dc143c;
 
@@ -174,6 +175,54 @@
   color-scheme: light;
 }
 
+/* Must stay after the light block: `.dark` and `:root` tie on specificity. */
+.dark {
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --surface: #111111;
+  --card: #121212;
+  --card-foreground: #fafafa;
+  --popover: #171717;
+  --popover-foreground: #fafafa;
+  --overlay: rgb(0 0 0 / 0.6);
+
+  --primary-hover: #e8335a;
+  --primary-strong: #ff6b85; /* crimson for small text on dark tints */
+  --primary-tint: rgb(220 20 60 / 0.14);
+
+  --secondary: #1c1c1c;
+  --secondary-foreground: #fafafa;
+  --muted: #1c1c1c;
+  --muted-foreground: #a3a3a3;
+  --accent: #1f1f1f;
+  --accent-foreground: #fafafa;
+  --border: #262626;
+  --input: #333333;
+  --scrollbar: #3a3a3a;
+  --scrollbar-hover: #525252;
+
+  --destructive-tint: rgb(220 20 60 / 0.16);
+  --success: #6fbf8f;
+  --success-tint: rgb(111 191 143 / 0.12);
+  --warning: #e0a84a;
+  --warning-tint: rgb(224 168 74 / 0.12);
+  --info: #8fb0d4;
+  --info-tint: rgb(143 176 212 / 0.12);
+
+  --chart-2: #fafafa;
+  --chart-3: #a3a3a3;
+  --chart-4: #737373;
+  --chart-5: #404040;
+
+  --sidebar: #0f0f0f;
+  --sidebar-foreground: #fafafa;
+  --sidebar-accent: #1c1c1c;
+  --sidebar-accent-foreground: #fafafa;
+  --sidebar-border: #262626;
+
+  color-scheme: dark;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring;
@@ -186,6 +235,11 @@
     -moz-osx-font-smoothing: grayscale;
     scrollbar-color: var(--scrollbar) transparent;
     scrollbar-width: thin;
+  }
+
+  /* Light-pinned subtrees re-resolve inherited text color against their own tokens */
+  .light {
+    @apply text-foreground;
   }
 
   body {

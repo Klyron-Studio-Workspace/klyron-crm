@@ -31,7 +31,7 @@ export default async function CrmLayout({ children }: LayoutProps<"/">) {
     <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar hiddenHrefs={hiddenHrefs} unreadChat={unreadChat} currentUserId={user.id} />
       <SidebarInset>
-        <Topbar user={{ name: user.name, email: user.email, role: user.role }} notifications={notifications} />
+        <Topbar user={{ name: user.name, email: user.email, role: user.role }} notifications={notifications} hiddenHrefs={hiddenHrefs} />
         <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-6 py-6 lg:px-8 lg:py-8">
           {children}
         </div>
