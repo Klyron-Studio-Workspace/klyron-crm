@@ -132,7 +132,8 @@ export async function sendMailAction(_prev: FormState, formData: FormData): Prom
       bodyText: body,
       inReplyToMessageId: inReplyToMessageId || null,
     })
-  } catch {
+  } catch (error) {
+    console.error("[mail] Failed to send:", error instanceof Error ? error.message : error)
     return { fieldErrors: { body: ["Failed to send. Check your SMTP settings."] }, values }
   }
 

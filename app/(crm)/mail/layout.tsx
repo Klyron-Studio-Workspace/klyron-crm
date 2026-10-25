@@ -1,9 +1,14 @@
 import { Suspense } from "react"
 import { countUnread } from "@/lib/actions/mail"
+import { requireTeamUser } from "@/lib/auth/dal"
+import { ensureMailbox } from "@/lib/mail-server/mailbox"
 import { FolderNav } from "@/components/mail/folder-nav"
 import { ComposeTrigger } from "@/components/mail/compose-trigger"
 
 export default async function MailLayout({ children }: { children: React.ReactNode }) {
+  // Older accounts (e.g. the seeded Owner) predate mailbox auto-provisioning.
+  const user = await requireTeamUser()
+  await ensureMailbox(user.id, user.name)
   const unread = await countUnread()
 
   return (
