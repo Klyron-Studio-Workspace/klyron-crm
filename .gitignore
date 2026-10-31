@@ -49,3 +49,6 @@ next-env.d.ts
 
 # LiveKit dev server binary (downloaded by npm run dev)
 /.livekit/
+
+# Promo video project and renders (large media, kept out of the repo)
+/Reel/
