@@ -20,6 +20,12 @@ function PrintButton() {
   )
 }
 
+/** Triggers window.print() once on mount — used when ?pdf=1 is in the URL. */
+function AutoPrint() {
+  React.useEffect(() => { window.print() }, [])
+  return null
+}
+
 /** Accept or decline, typed name as the signature. */
 function ProposalResponse({ token }: { token: string }) {
   const [state, action, pending] = useActionState(respondToProposal, undefined)
@@ -80,4 +86,4 @@ function ProposalResponse({ token }: { token: string }) {
   )
 }
 
-export { PrintButton, ProposalResponse }
+export { AutoPrint, PrintButton, ProposalResponse }

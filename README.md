@@ -166,6 +166,7 @@ It listens on ports 25 / 587 and needs DNS (MX, SPF, DKIM, DMARC, PTR) to receiv
 | `npm run db:seed -- --reset-password` | Reset Owner password to `SUPERADMIN_PASSWORD` |
 | `npm run db:generate` | Regenerate Prisma client after schema changes |
 | `npm run db:studio` | Open Prisma Studio (DB GUI) |
+| `npm run backup` | Dump the database + archive uploads to `BACKUP_DIR` (default `storage/backups`), keep `BACKUP_KEEP_DAYS` (14) |
 
 ---
 
@@ -295,6 +296,28 @@ Infinite SVG canvas: shapes, connectors, text, sticky notes, resize/rotate, grou
 - **Emails tab** on every lead and client page shows the full email history next to notes, calls, and chat
 - Live "new mail" notification via SSE; HTML bodies sanitized before display
 
+### Phase 10 — UX Polish & Live Notifications
+
+#### Theme & Navigation
+- **Light / dark theme switcher** in the topbar — persists across sessions
+- **Ctrl+K quick navigation** — jump to any record or page without a mouse
+
+#### Auth
+- **Reveal-password toggle** on every `type="password"` field (login, forgot/reset password, change password) — eye/eye-off icon button built into `FormField`, no extra component
+
+#### Finance — Invoice
+- **Professional invoice redesign** — large serif "Invoice" heading, crimson rule, small-caps labels, zebra line items, dark `bg-foreground` total band, "Thank you!" sign-off
+- **Signature pad** (`Settings → Billing`) — draw with mouse/trackpad (strokes → SVG paths) or type-to-sign with three cursive fonts (Dancing Script · Great Vibes · Pacifico); saved as SVG, printed on every invoice and proposal
+- **PDF download button** on `/finance/invoices/[id]` — opens the public invoice in print view via `?pdf=1`, no server-side PDF library needed
+- **Payment details label** clarified to "Payment details (IBAN / bank account)" with a placeholder showing the expected format; printed on every non-void invoice so clients know where to send payment
+- **Public invoice background** fixed — always white/light even when the team's app is in dark mode (`.light` CSS class pins the palette; solid `bg-muted` instead of the semi-transparent `bg-muted/40` that let the dark `<html>` bleed through)
+
+#### Live Notifications (SSE-powered)
+- **Notification sound** — two-tone "ding" synthesized via Web Audio API (A5 → C#6, no audio file) plays on every new email (`mail.inbound`) and in-app notification
+- **Browser push notifications** — `new Notification()` fires with sender name + subject/body; appears as a Windows/macOS system notification even when the CRM tab is in the background
+- **Permission prompt** — the browser asks to allow notifications on the user's first click in the CRM or portal (browsers only allow the prompt, and audio, after a user gesture); no banner
+- **Dynamic Island call notification** — when any call starts, a dark pill appears at top-center and morphs with a springy spring animation into an expanded card showing caller name, call title, a pulsing green phone icon, and **Dismiss / Join call** buttons; auto-dismisses after 30 s; works on both the CRM and the client portal; built on the existing `call.started` SSE notification — no server changes needed
+
 ### Background Scheduler
 Runs via `instrumentation.ts` → `lib/scheduler.ts`: follow-up reminders, overdue invoice reminders (weekly ×3), empty call cleanup, orphan upload cleanup, pending meeting notes generation.
 
@@ -398,7 +421,7 @@ npm run db:seed       # first deploy only
 pm2 start deploy/ecosystem.config.cjs && pm2 save
 ```
 
-`deploy/ecosystem.config.cjs` runs two processes: `klyron-crm` (Next.js) and `klyron-mail` (Haraka). Run **exactly one instance** of `klyron-crm` — the SSE bus and scheduler live in-process.
+`deploy/ecosystem.config.cjs` runs `klyron-crm` (Next.js), `klyron-mail` (Haraka) and `klyron-backup` (nightly backup). Run **exactly one instance** of `klyron-crm` — the SSE bus and scheduler live in-process.
 
 Config references in `deploy/`:
 - `nginx.example.conf` — TLS, SSE location, upload limits, X-Accel-Redirect, LiveKit proxy
@@ -408,6 +431,7 @@ Config references in `deploy/`:
 
 **Production checklist:**
 - [ ] `NGINX_ACCEL_REDIRECT=1` and a real absolute `UPLOAD_DIR`
+- [ ] Backups: `klyron-backup` (PM2) runs nightly at 03:00; set `BACKUP_DIR` and copy it off the server (e.g. `rclone` to cloud storage)
 - [ ] SMTP configured for system emails
 - [ ] Real LiveKit URL + keys
 - [ ] `APP_URL` set to your public domain

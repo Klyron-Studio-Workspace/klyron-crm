@@ -12,7 +12,7 @@ export default async function MailLayout({ children }: { children: React.ReactNo
   const unread = await countUnread()
 
   return (
-    <div data-full-bleed className="flex h-[calc(100svh-3.5rem)] overflow-hidden">
+    <div data-full-bleed className="flex min-h-0 flex-1 overflow-hidden">
       {/* Left panel — folder nav, styled like the main sidebar */}
       <aside className="hidden w-52 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
         <FolderNav unread={unread} />

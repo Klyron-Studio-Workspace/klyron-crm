@@ -3,9 +3,12 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import {
+  BuildingIcon,
   CornerDownLeftIcon,
   FilePlusIcon,
   FileTextIcon,
+  FolderKanbanIcon,
+  KanbanSquareIcon,
   KeyRoundIcon,
   LogOutIcon,
   ReceiptIcon,
@@ -19,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { logout } from "@/lib/actions/auth"
+import { searchRecords, type SearchHit } from "@/lib/actions/search"
 import { navSections } from "@/lib/navigation"
 import { setTheme } from "@/lib/theme"
 import { cn } from "@/lib/utils"
@@ -35,7 +39,14 @@ const extraPages: { label: string; href: string; icon: LucideIcon; under: string
   { label: "Password & sessions", href: "/settings/security", icon: KeyRoundIcon, under: "/settings" },
 ]
 
-/** Ctrl/⌘+K quick navigation: pages, theme and sign out, fully keyboard driven. */
+const recordKinds: Record<SearchHit["kind"], { group: string; icon: LucideIcon }> = {
+  lead: { group: "Leads", icon: KanbanSquareIcon },
+  client: { group: "Clients", icon: BuildingIcon },
+  project: { group: "Projects", icon: FolderKanbanIcon },
+  invoice: { group: "Invoices", icon: ReceiptIcon },
+}
+
+/** Ctrl/⌘+K quick navigation: pages, records, theme and sign out, fully keyboard driven. */
 function CommandPalette({ hiddenHrefs }: { hiddenHrefs: string[] }) {
   const router = useRouter()
   const listId = useId()
@@ -68,13 +79,38 @@ function CommandPalette({ hiddenHrefs }: { hiddenHrefs: string[] }) {
     ]
   }, [hiddenHrefs, router])
 
+  // Records (leads, clients, projects, invoices) come from the server, debounced.
+  const [hits, setHits] = useState<{ query: string; items: SearchHit[] }>({ query: "", items: [] })
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) return
+    const timer = setTimeout(() => {
+      searchRecords(q).then(
+        (items) => setHits({ query: q, items }),
+        () => setHits({ query: q, items: [] })
+      )
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [query])
+
   const results = useMemo(() => {
     const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-    return commands.filter((c) => {
+    const matched = commands.filter((c) => {
       const text = `${c.group} ${c.label}`.toLowerCase()
       return words.every((w) => text.includes(w))
     })
-  }, [commands, query])
+    const records: Command[] =
+      hits.query === query.trim() && query.trim().length >= 2
+        ? hits.items.map((hit) => ({
+            id: `${hit.kind}-${hit.id}`,
+            group: recordKinds[hit.kind].group,
+            label: hit.detail ? `${hit.label} · ${hit.detail}` : hit.label,
+            icon: recordKinds[hit.kind].icon,
+            run: () => router.push(hit.href),
+          }))
+        : []
+    return [...matched, ...records]
+  }, [commands, query, hits, router])
 
   function show(next: boolean) {
     if (next) {
@@ -168,7 +204,7 @@ function CommandPalette({ hiddenHrefs }: { hiddenHrefs: string[] }) {
               aria-autocomplete="list"
               aria-activedescendant={results[active] ? optionId(active) : undefined}
               aria-label="Search pages and actions"
-              placeholder="Where to?"
+              placeholder="Search pages, leads, clients, projects, invoices…"
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value)

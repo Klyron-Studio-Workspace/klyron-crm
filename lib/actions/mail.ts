@@ -8,6 +8,7 @@ import { echo, fieldErrorsFrom, type FormState } from "@/lib/actions/state"
 import { requireTeamUser } from "@/lib/auth/dal"
 import { db } from "@/lib/db"
 import type { EmailFolder } from "@/lib/generated/prisma/enums"
+import { escapeHtml } from "@/lib/mail"
 import { sendEmail } from "@/lib/mail-server/outbound"
 
 const MAIL_PATH = "/mail"
@@ -128,7 +129,7 @@ export async function sendMailAction(_prev: FormState, formData: FormData): Prom
       to: toList,
       cc: ccList,
       subject,
-      bodyHtml: `<p>${body.replace(/\n/g, "<br>")}</p>`,
+      bodyHtml: `<p>${escapeHtml(body).replace(/\n/g, "<br>")}</p>`,
       bodyText: body,
       inReplyToMessageId: inReplyToMessageId || null,
     })

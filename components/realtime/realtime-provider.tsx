@@ -14,6 +14,8 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     const source = new EventSource("/api/events")
+    source.onopen = () => console.log("[Realtime] SSE connected")
+    source.onerror = (e) => console.warn("[Realtime] SSE error", e)
     source.onmessage = (message) => {
       let event: RealtimeEvent
       try {
@@ -21,6 +23,7 @@ function RealtimeProvider({ children }: { children: React.ReactNode }) {
       } catch {
         return
       }
+      console.log("[Realtime] event received:", event.type)
       for (const listener of listeners.current) listener(event)
     }
     return () => source.close()

@@ -26,5 +26,15 @@ module.exports = {
       max_memory_restart: "512M",
       time: true,
     },
+    {
+      // Nightly database + uploads backup at 03:00 server time (scripts/backup.mjs).
+      name: "klyron-backup",
+      cwd: __dirname + "/..",
+      script: "scripts/backup.mjs",
+      node_args: "--env-file=.env",
+      cron_restart: "0 3 * * *",
+      autorestart: false,
+      time: true,
+    },
   ],
 }

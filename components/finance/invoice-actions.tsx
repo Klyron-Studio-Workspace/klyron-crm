@@ -9,6 +9,7 @@ import {
   BellRingIcon,
   CheckIcon,
   CopyIcon,
+  DownloadIcon,
   ExternalLinkIcon,
   MoreHorizontalIcon,
   PencilIcon,
@@ -129,9 +130,13 @@ function InvoiceActions({ invoiceId, number, status, overdue, publicPath, balanc
           Send reminder
         </Button>
       )}
+      <Button variant="secondary" nativeButton={false} render={<a href={`${publicPath}?pdf=1`} target="_blank" rel="noopener noreferrer" />}>
+        <DownloadIcon data-icon="inline-start" />
+        Download PDF
+      </Button>
       <Button variant="secondary" nativeButton={false} render={<a href={publicPath} target="_blank" rel="noopener noreferrer" />}>
         <ExternalLinkIcon data-icon="inline-start" />
-        View / PDF
+        View
       </Button>
       <CopyLinkButton path={publicPath} />
       {editable && (

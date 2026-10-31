@@ -1,5 +1,6 @@
 "use server"
 
+import { randomBytes } from "node:crypto"
 import { revalidatePath } from "next/cache"
 import { z } from "zod"
 
@@ -82,6 +83,26 @@ export async function generateMcpToken() {
   await logEvent({ actor: userActor(actor), action: "settings.mcp.rotate", entity: { type: "org", id: "org" } })
   revalidatePath("/settings/mcp")
   return { ok: true as const, token }
+}
+
+/** Turn the website contact form on, or rotate its key (old embeds stop working). */
+export async function rotateLeadFormKey() {
+  const actor = await requireTeamUser()
+  if (!(await can(actor, "settings", "WRITE"))) return { ok: false as const, error: "You don't have permission to edit settings." }
+  const leadFormKey = randomBytes(12).toString("base64url")
+  await db.orgSettings.upsert({ where: { id: "org" }, create: { id: "org", leadFormKey }, update: { leadFormKey } })
+  await logEvent({ actor: userActor(actor), action: "settings.leadform.rotate", entity: { type: "org", id: "org" } })
+  revalidatePath("/settings/website-form")
+  return { ok: true as const }
+}
+
+export async function disableLeadForm() {
+  const actor = await requireTeamUser()
+  if (!(await can(actor, "settings", "WRITE"))) return { ok: false as const, error: "You don't have permission to edit settings." }
+  await db.orgSettings.update({ where: { id: "org" }, data: { leadFormKey: null } })
+  await logEvent({ actor: userActor(actor), action: "settings.leadform.disable", entity: { type: "org", id: "org" } })
+  revalidatePath("/settings/website-form")
+  return { ok: true as const }
 }
 
 export async function revokeMcpToken() {

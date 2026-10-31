@@ -16,6 +16,10 @@
   --font-heading: var(--font-inter-tight), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-cormorant), ui-serif, Georgia, serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* Signature fonts */
+  --font-sig-classic: var(--font-dancing-script), cursive;
+  --font-sig-elegant: var(--font-great-vibes), cursive;
+  --font-sig-bold: var(--font-pacifico), cursive;
 
   /* Core palette */
   --color-background: var(--background);
@@ -296,6 +300,22 @@
       transition-duration: 0.01ms !important;
       scroll-behavior: auto !important;
     }
+  }
+}
+
+/*
+ * Phones: Tailwind sizes are in rem, so a smaller root scales the whole app (text,
+ * spacing, icons) down ~12%. Fields stay at 16px, or iOS zooms in when you tap them.
+ * Unlayered on purpose so it beats Tailwind's text-* utilities.
+ */
+@media (max-width: 639px) {
+  html {
+    font-size: 14px;
+  }
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
   }
 }
 

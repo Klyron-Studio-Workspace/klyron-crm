@@ -42,7 +42,7 @@ export default async function DashboardPage() {
     <>
       <PageHeader editorial title={`Welcome back, ${firstName}.`} description="Pipeline and follow-ups at a glance." />
 
-      <section aria-label="Key metrics" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Key metrics" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Open pipeline" value={formatTotals(summary.openValue, { compact: true })} hint={plural(summary.openCount, "open lead")} />
         <StatCard label="Won this month" value={formatTotals(summary.wonValue, { compact: true })} hint={`${plural(summary.wonCount, "deal")} closed`} />
         <StatCard label="Win rate this month" value={summary.winRate === null ? "—" : `${summary.winRate}%`} hint="Won vs. lost, closed this month" />

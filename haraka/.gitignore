@@ -1,0 +1,14 @@
+# Haraka has its own package.json; install with `npm ci` in this folder.
+node_modules/
+
+# Runtime data
+queue/
+*.log
+*.pid
+
+# Secrets: DKIM signing keys and TLS certificates stay on the server
+config/dkim/
+config/tls_key.pem
+config/tls_cert.pem
+*.pem
+*.key

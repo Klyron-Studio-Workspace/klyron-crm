@@ -46,9 +46,9 @@ function BillingSettingsForm({ values }: { values: BillingValues }) {
               <Textarea id="billing-address" name="address" rows={4} maxLength={1000} value={v.address} onChange={set("address")} placeholder={"Klyron Studio\nStreet, City\nCountry\nTax ID"} />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="billing-instructions">How clients pay you</Label>
-              <Textarea id="billing-instructions" name="paymentInstructions" rows={4} maxLength={2000} value={v.paymentInstructions} onChange={set("paymentInstructions")} placeholder={"Bank: …\nAccount title: …\nIBAN: …\nSWIFT: …"} />
-              <p className="text-xs text-muted-foreground">Shown on unpaid invoices.</p>
+              <Label htmlFor="billing-instructions">Payment details (IBAN / bank account)</Label>
+              <Textarea id="billing-instructions" name="paymentInstructions" rows={4} maxLength={2000} value={v.paymentInstructions} onChange={set("paymentInstructions")} placeholder={"Bank: Meezan Bank\nAccount name: Kaarim Hussain\nAccount No: 01234567890\nIBAN: PK00MEZN0001234567890\nSWIFT: MEZNPKKA"} />
+              <p className="text-xs text-muted-foreground">Printed on invoices so clients know where to send payment.</p>
             </div>
             <FormField label="Default tax rate (%)" icon={LandmarkIcon} name="defaultTaxRate" inputMode="decimal" value={v.defaultTaxRate} onChange={set("defaultTaxRate")} errors={errors?.defaultTaxRate} hint="Pre-filled on new documents; change it per document." />
             <FormField label="Payment terms (days)" icon={CalendarClockIcon} name="paymentTermsDays" inputMode="numeric" value={v.paymentTermsDays} onChange={set("paymentTermsDays")} errors={errors?.paymentTermsDays} hint="New invoices are due this many days after they're issued." />

@@ -23,6 +23,7 @@ export type StudioDTO = {
   billingEmail: string | null
   address: string | null
   paymentInstructions: string | null
+  signatureSvg: string | null
 }
 
 export type BillToDTO = { name: string; contactName: string | null; email: string | null }

@@ -224,7 +224,7 @@ function KanbanBoard({ columns, canWrite }: { columns: BoardColumnDTO[]; canWrit
 
   return (
     <>
-      <div className="-mx-6 overflow-x-auto px-6 pb-4 lg:-mx-8 lg:px-8">
+      <div className="-mx-4 overflow-x-auto px-4 pb-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
         <div className="grid auto-cols-[minmax(260px,1fr)] grid-flow-col gap-3">
           {optimistic.map((column) => {
             const isTarget = dropTarget?.stageId === column.id

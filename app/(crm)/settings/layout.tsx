@@ -18,6 +18,7 @@ export default async function SettingsLayout({ children }: LayoutProps<"/setting
       ? [
           { href: "/settings/pipeline", label: "Pipeline" },
           { href: "/settings/services", label: "Services" },
+          { href: "/settings/website-form", label: "Website form" },
         ]
       : []),
     ...(settingsWrite && financeWrite ? [{ href: "/settings/billing", label: "Billing" }] : []),

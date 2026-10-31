@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function PublicDocumentLayout({ children }: LayoutProps<"/">) {
-  return <div className="light min-h-svh bg-muted/40 print:bg-white">{children}</div>
+  return <div className="light min-h-svh bg-muted print:bg-white">{children}</div>
 }

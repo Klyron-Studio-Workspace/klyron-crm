@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:next": "next dev",
+    "tunnel": "cloudflared tunnel --url http://localhost:3000",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "backup": "node --env-file=.env scripts/backup.mjs",
     "test": "node --experimental-strip-types --test lib/leads/ai-result.test.ts lib/projects/ai-result.test.ts lib/whiteboard/document.test.ts lib/whiteboard/geometry.test.ts lib/whiteboard/operations.test.ts",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate dev",

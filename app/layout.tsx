@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Inter, Inter_Tight } from "next/font/google";
+import { Cormorant_Garamond, Dancing_Script, Great_Vibes, Inter, Inter_Tight, Pacifico } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toast";
@@ -23,6 +23,27 @@ const cormorant = Cormorant_Garamond({
   weight: ["400", "500", "600"],
   style: ["normal", "italic"],
   variable: "--font-cormorant",
+  display: "swap",
+})
+
+const dancingScript = Dancing_Script({
+  subsets: ["latin"],
+  weight: ["700"],
+  variable: "--font-dancing-script",
+  display: "swap",
+})
+
+const greatVibes = Great_Vibes({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-great-vibes",
+  display: "swap",
+})
+
+const pacifico = Pacifico({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-pacifico",
   display: "swap",
 });
 
@@ -54,7 +75,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         "h-full antialiased",
         inter.variable,
         interTight.variable,
-        cormorant.variable
+        cormorant.variable,
+        dancingScript.variable,
+        greatVibes.variable,
+        pacifico.variable,
       )}
       /* The inline theme script toggles `dark` on <html> before hydration. */
       suppressHydrationWarning
