@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Inter, Inter_Tight } from "next/font/google";
+import { Cormorant_Garamond, Dancing_Script, Great_Vibes, Inter, Inter_Tight, Pacifico } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { themeScript } from "@/lib/theme-script";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,6 +24,27 @@ const cormorant = Cormorant_Garamond({
   style: ["normal", "italic"],
   variable: "--font-cormorant",
   display: "swap",
+})
+
+const dancingScript = Dancing_Script({
+  subsets: ["latin"],
+  weight: ["700"],
+  variable: "--font-dancing-script",
+  display: "swap",
+})
+
+const greatVibes = Great_Vibes({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-great-vibes",
+  display: "swap",
+})
+
+const pacifico = Pacifico({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-pacifico",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -38,8 +60,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FFFFFF",
-  colorScheme: "light",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A0A0A" },
+  ],
+  colorScheme: "light dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -50,9 +75,17 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         "h-full antialiased",
         inter.variable,
         interTight.variable,
-        cormorant.variable
+        cormorant.variable,
+        dancingScript.variable,
+        greatVibes.variable,
+        pacifico.variable,
       )}
+      /* The inline theme script toggles `dark` on <html> before hydration. */
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       {/* Browser extensions (e.g. ColorZilla) add attributes to <body>; ignore those mismatches. */}
       <body suppressHydrationWarning className="flex min-h-full flex-col">
         <TooltipProvider>

@@ -657,6 +657,17 @@ export async function updateBillingSettings(_prev: FormState, formData: FormData
   return { ok: true, message: "Billing settings saved." }
 }
 
+export async function saveSignature(svg: string | null): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireTeamUser()
+  if (!(await can(user, "settings", "WRITE"))) return { ok: false, error: "You don't have permission to change settings." }
+  // Minimal SVG guard: must start with <svg or be null (clear)
+  if (svg !== null && !svg.trimStart().startsWith("<svg")) return { ok: false, error: "Invalid signature data." }
+  await db.orgSettings.upsert({ where: { id: "org" }, create: { id: "org", signatureSvg: svg }, update: { signatureSvg: svg } })
+  await logEvent({ actor: userActor(user), action: "settings.signature.update" })
+  revalidatePath("/settings/billing")
+  return { ok: true }
+}
+
 export async function generateProposalDraft(recipient: string, items: string[]): Promise<{ ok: true; draft: ProposalDraft } | { ok: false; error: string }> {
   const user = await requireFinanceWriter()
   if (!process.env.GROQ_API_KEY) return { ok: false, error: "Add GROQ_API_KEY to .env first." }

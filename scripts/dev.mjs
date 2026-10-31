@@ -5,6 +5,7 @@ import { spawn, spawnSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs"
 import { createConnection } from "node:net"
+import { networkInterfaces } from "node:os"
 import path from "node:path"
 
 const VERSION = "1.13.9"
@@ -113,5 +114,15 @@ try {
 } catch (error) {
   log(`Video calls unavailable: ${error.message}`)
 }
+
+// Next prints one "Network" address, often a VPN adapter. List the real Wi-Fi/LAN ones for phones.
+const lanIps = Object.values(networkInterfaces())
+  .flat()
+  .filter((n) => n.family === "IPv4" && !n.internal && /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(n.address))
+  .map((n) => n.address)
+const portArg = process.argv.findIndex((a) => a === "-p" || a === "--port")
+const port = portArg > -1 ? process.argv[portArg + 1] : (process.env.PORT ?? "3000")
+if (lanIps.length) for (const ip of lanIps) log(`On your phone (same Wi-Fi): \x1b[1mhttp://${ip}:${port}\x1b[0m`)
+else log("No Wi-Fi/LAN address found; connect this PC to the same network as your phone.")
 
 run("next", "npx", ["next", "dev", ...process.argv.slice(2).filter((a) => a !== "--setup")])

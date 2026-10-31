@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { KeyRoundIcon, LogOutIcon } from "lucide-react"
 
+import { ThemeMenuGroup } from "@/components/layout/theme-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
@@ -36,6 +37,8 @@ function PortalAccountMenu({ name, email }: { name: string; email: string }) {
             <span className="block truncate font-normal">{email}</span>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <ThemeMenuGroup />
         <DropdownMenuSeparator />
         <DropdownMenuItem render={<Link href="/change-password" />}>
           <KeyRoundIcon /> Change password

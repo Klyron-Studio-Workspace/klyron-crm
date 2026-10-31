@@ -1,6 +1,8 @@
 import { cookies } from "next/headers"
 
 import { AppSidebar } from "@/components/layout/app-sidebar"
+import { CallIsland } from "@/components/layout/call-island"
+import { NotificationAlert } from "@/components/layout/notification-alert"
 import { RealtimeProvider } from "@/components/realtime/realtime-provider"
 import { Topbar } from "@/components/layout/topbar"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -28,11 +30,15 @@ export default async function CrmLayout({ children }: LayoutProps<"/">) {
 
   return (
     <RealtimeProvider>
+    <CallIsland />
     <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar hiddenHrefs={hiddenHrefs} unreadChat={unreadChat} currentUserId={user.id} />
-      <SidebarInset>
-        <Topbar user={{ name: user.name, email: user.email, role: user.role }} notifications={notifications} />
-        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-8 px-6 py-6 lg:px-8 lg:py-8">
+      {/* Full-bleed pages (mail, chat) lock the shell to the screen and fill what's left below the bars */}
+      <SidebarInset className="has-[[data-full-bleed]]:h-svh has-[[data-full-bleed]]:overflow-hidden">
+        <NotificationAlert userId={user.id} />
+        <Topbar user={{ name: user.name, email: user.email, role: user.role }} notifications={notifications} hiddenHrefs={hiddenHrefs} />
+        {/* Pages marked data-full-bleed (mail, chat) drop the width cap and padding to sit edge to edge */}
+        <div className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 px-4 py-4 sm:gap-8 sm:px-6 sm:py-6 lg:px-8 lg:py-8 has-[[data-full-bleed]]:min-h-0 has-[[data-full-bleed]]:max-w-none has-[[data-full-bleed]]:p-0">
           {children}
         </div>
       </SidebarInset>

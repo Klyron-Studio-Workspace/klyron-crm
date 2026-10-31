@@ -4,6 +4,7 @@ import { createTransport } from "nodemailer"
 
 import { db } from "@/lib/db"
 import { resolveLinks } from "@/lib/mail-server/link"
+import { ensureMailbox } from "@/lib/mail-server/mailbox"
 import { resolveThread } from "@/lib/mail-server/thread"
 
 type SendOptions = {
@@ -22,10 +23,12 @@ type SendOptions = {
  * Writes a SENT copy to the DB. Returns the created Email id.
  */
 export async function sendEmail(opts: SendOptions): Promise<string> {
-  const mailbox = await db.mailbox.findUnique({
-    where: { userId: opts.fromUserId },
-  })
-  if (!mailbox) throw new Error("No mailbox for user " + opts.fromUserId)
+  // Accounts created before mail existed (e.g. the seeded Owner) have no mailbox yet.
+  let mailbox = await db.mailbox.findUnique({ where: { userId: opts.fromUserId } })
+  if (!mailbox) {
+    const user = await db.user.findUniqueOrThrow({ where: { id: opts.fromUserId }, select: { name: true } })
+    mailbox = await db.mailbox.findUniqueOrThrow({ where: { id: await ensureMailbox(opts.fromUserId, user.name) } })
+  }
 
   let inReplyToId: string | null = null
   if (opts.inReplyToMessageId) {

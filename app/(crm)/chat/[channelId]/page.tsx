@@ -1,3 +1,4 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
@@ -6,11 +7,11 @@ import { BuildingIcon, HashIcon, LockIcon, UserIcon } from "lucide-react"
 import { StartCallButton } from "@/components/calls/start-call-button"
 import { GroupPanel } from "@/components/chat/group-panel"
 import { ChannelList } from "@/components/chat/channel-list"
-import { MessageThread } from "@/components/chat/message-thread"
 import { MobileChannels } from "@/components/chat/mobile-channels"
+import { ThreadLoader, ThreadSkeleton } from "@/components/chat/thread-loader"
 import { can, requirePermission } from "@/lib/auth/dal"
 import { findAccessibleChannel } from "@/lib/chat/access"
-import { getChannelList, getMessages } from "@/lib/chat/queries"
+import { getChannelList } from "@/lib/chat/queries"
 import { db } from "@/lib/db"
 import { getAssignableMembers } from "@/lib/leads/queries"
 
@@ -22,9 +23,9 @@ export default async function ChatPage({ params }: PageProps<"/chat/[channelId]"
   const channel = await findAccessibleChannel(user, channelId)
   if (!channel) notFound()
 
-  const [channels, page, canWrite, members, canSeeClient] = await Promise.all([
+  // Messages aren't awaited here: <ThreadLoader> streams them in below the header.
+  const [channels, canWrite, members, canSeeClient] = await Promise.all([
     getChannelList(user),
-    getMessages(channel.id),
     can(user, "chat", "WRITE"),
     getAssignableMembers(),
     can(user, "clients", "READ"),
@@ -51,7 +52,7 @@ export default async function ChatPage({ params }: PageProps<"/chat/[channelId]"
 
   return (
     // Full-height chat inside the page container.
-    <div className="-mx-6 -my-6 grid h-[calc(100svh-3.5rem)] grid-cols-1 border-border md:grid-cols-[17rem_minmax(0,1fr)] lg:-mx-8 lg:-my-8">
+    <div data-full-bleed className="grid min-h-0 flex-1 grid-cols-1 border-border md:grid-cols-[17rem_minmax(0,1fr)]">
       <aside className="hidden min-h-0 border-r border-border bg-sidebar md:flex md:flex-col">
         <ChannelList {...listProps} />
       </aside>
@@ -79,11 +80,9 @@ export default async function ChatPage({ params }: PageProps<"/chat/[channelId]"
             {canWrite && <StartCallButton channelId={channel.id} />}
           </div>
         </header>
-        <MessageThread
-          key={channel.id}
+        <Suspense key={channel.id} fallback={<ThreadSkeleton />}>
+        <ThreadLoader
           channelId={channel.id}
-          initialMessages={page.messages}
-          initialHasMore={page.hasMore}
           currentUserId={user.id}
           canWrite={canWrite}
           canModerate={user.role === "OWNER" || user.role === "ADMIN"}
@@ -91,6 +90,7 @@ export default async function ChatPage({ params }: PageProps<"/chat/[channelId]"
           placeholder={channel.kind === "CLIENT" ? `Message ${title} (the client will see this)` : `Message ${title}`}
           emptyText={channel.kind === "CLIENT" ? `Start the conversation with ${title}.` : "No messages yet. Say hello."}
         />
+        </Suspense>
       </section>
     </div>
   )

@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import { notFound } from "next/navigation"
 
 import { DocumentView } from "@/components/finance/document-view"
-import { PrintButton } from "@/components/finance/public-bits"
+import { AutoPrint, PrintButton } from "@/components/finance/public-bits"
 import { InvoiceStatusBadge } from "@/components/finance/status-badge"
 import { FormAlert } from "@/components/forms/form-alert"
 import { getCurrentUser } from "@/lib/auth/dal"
@@ -13,8 +13,9 @@ import { recordFirstView } from "@/lib/finance/views"
 export const metadata: Metadata = { title: "Invoice" }
 
 /** The client's view of an invoice. The unguessable token in the URL is the only credential. */
-export default async function PublicInvoicePage({ params }: PageProps<"/i/[token]">) {
+export default async function PublicInvoicePage({ params, searchParams }: PageProps<"/i/[token]">) {
   const { token } = await params
+  const { pdf } = await searchParams
   const [invoice, org, viewer] = await Promise.all([getInvoiceByToken(token), getOrgBilling(), getCurrentUser()])
   const isTeam = Boolean(viewer && isTeamRole(viewer.role))
   if (!invoice || (invoice.status === "DRAFT" && !isTeam)) notFound()
@@ -22,6 +23,7 @@ export default async function PublicInvoicePage({ params }: PageProps<"/i/[token
 
   return (
     <main className="mx-auto flex w-full max-w-4xl flex-col gap-4 px-4 py-8 sm:px-6 print:max-w-none print:p-0">
+      {pdf === "1" && <AutoPrint />}
       <div className="flex flex-wrap items-center justify-between gap-3 print:hidden">
         <InvoiceStatusBadge status={invoice.displayStatus} />
         <PrintButton />
@@ -43,7 +45,7 @@ export default async function PublicInvoicePage({ params }: PageProps<"/i/[token
         totals={invoice.totals}
         amountPaid={invoice.amountPaid}
         notes={invoice.notes}
-        showPaymentInstructions={invoice.status === "SENT"}
+        showPaymentInstructions={invoice.status !== "VOID"}
       />
     </main>
   )

@@ -97,21 +97,45 @@ function MessageThread({
     return () => clearInterval(id)
   }, [typing])
 
+  const loadingRef = React.useRef(false)
   function loadOlder() {
     const el = scrollRef.current
     const first = messages[0]
-    if (!el || !first) return
+    if (!el || !first || loadingRef.current) return
+    loadingRef.current = true
     const previousHeight = el.scrollHeight
     startLoadingOlder(async () => {
-      const page = await loadOlderMessages(channelId, first.id)
-      stickToBottom.current = false
-      setMessages((prev) => [...page.messages, ...prev])
-      setHasMore(page.hasMore)
-      requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight - previousHeight
-      })
+      try {
+        const page = await loadOlderMessages(channelId, first.id)
+        stickToBottom.current = false
+        setMessages((prev) => [...page.messages, ...prev])
+        setHasMore(page.hasMore)
+        requestAnimationFrame(() => {
+          el.scrollTop = el.scrollHeight - previousHeight // keep the reader's place
+        })
+      } finally {
+        loadingRef.current = false
+      }
     })
   }
+
+  // Loads the next older chunk when the reader scrolls near the top.
+  const sentinelRef = React.useRef<HTMLDivElement>(null)
+  const loadOlderRef = React.useRef(loadOlder)
+  React.useLayoutEffect(() => {
+    loadOlderRef.current = loadOlder
+  })
+  React.useEffect(() => {
+    const root = scrollRef.current
+    const sentinel = sentinelRef.current
+    if (!hasMore || !root || !sentinel) return
+    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && loadOlderRef.current(), {
+      root,
+      rootMargin: "300px 0px 0px 0px",
+    })
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [hasMore, messages.length])
 
   const typers = Object.values(typing).map((t) => t.name)
 
@@ -145,8 +169,9 @@ function MessageThread({
         aria-label="Messages"
       >
         {hasMore && (
-          <div className="mb-2 flex justify-center">
-            <Button variant="secondary" size="sm" disabled={loadingOlder} onClick={loadOlder}>
+          <div ref={sentinelRef} className="mb-2 flex justify-center">
+            {/* Scrolling up loads automatically; the button is for keyboard users and as a fallback. */}
+            <Button variant="ghost" size="sm" disabled={loadingOlder} onClick={loadOlder}>
               {loadingOlder ? "Loading…" : "Load earlier messages"}
             </Button>
           </div>
@@ -187,8 +212,9 @@ function MessageThread({
         )}
       </div>
 
-      <div className="border-t border-border bg-background px-3 pt-2 pb-3">
-        <p aria-live="polite" className="h-5 text-xs text-muted-foreground">
+      <div className="relative border-t border-border bg-background px-3 pt-2 pb-3 max-sm:px-2 max-sm:py-2">
+        {/* Phones: "is typing…" floats over the last message instead of reserving an empty row */}
+        <p aria-live="polite" className="h-5 text-xs text-muted-foreground max-sm:pointer-events-none max-sm:absolute max-sm:bottom-full max-sm:left-0 max-sm:px-3">
           {typers.length === 1 ? `${typers[0]} is typing…` : typers.length > 1 ? `${typers.join(", ")} are typing…` : ""}
         </p>
         {canWrite ? (

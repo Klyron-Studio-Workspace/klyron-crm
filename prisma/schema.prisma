@@ -198,6 +198,11 @@ model OrgSettings {
   /// SHA-256 only; the MCP bearer token is shown once when generated.
   mcpTokenHash           String?  @db.Char(64)
   mcpTokenCreatedAt      DateTime?
+  /// SVG path data drawn in Settings → Billing. Printed on invoices and proposals.
+  signatureSvg           String?  @db.Text
+  /// Public key for the website contact form (/api/forms/lead). Null = form off.
+  /// Not a secret: it sits in the website's HTML. Rotating it cuts off old copies.
+  leadFormKey            String?  @unique @db.VarChar(32)
   updatedAt              DateTime @updatedAt
 
   @@map("org_settings")

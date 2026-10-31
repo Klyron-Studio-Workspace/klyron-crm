@@ -1,21 +1,21 @@
 import { Suspense } from "react"
 import { countUnread } from "@/lib/actions/mail"
+import { requireTeamUser } from "@/lib/auth/dal"
+import { ensureMailbox } from "@/lib/mail-server/mailbox"
 import { FolderNav } from "@/components/mail/folder-nav"
 import { ComposeTrigger } from "@/components/mail/compose-trigger"
 
 export default async function MailLayout({ children }: { children: React.ReactNode }) {
+  // Older accounts (e.g. the seeded Owner) predate mailbox auto-provisioning.
+  const user = await requireTeamUser()
+  await ensureMailbox(user.id, user.name)
   const unread = await countUnread()
 
   return (
-    <div className="-mx-6 -my-6 flex h-[calc(100svh-3.5rem)] overflow-hidden lg:-mx-8 lg:-my-8">
-      {/* Left panel — folder nav */}
-      <aside className="hidden w-56 shrink-0 border-r border-border bg-sidebar flex-col md:flex">
-        <div className="flex h-12 shrink-0 items-center border-b border-border px-4">
-          <span className="text-sm font-semibold tracking-tight">Mail</span>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          <FolderNav unread={unread} />
-        </div>
+    <div data-full-bleed className="flex min-h-0 flex-1 overflow-hidden">
+      {/* Left panel — folder nav, styled like the main sidebar */}
+      <aside className="hidden w-52 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground md:flex">
+        <FolderNav unread={unread} />
       </aside>
 
       {/* Centre + right panels */}

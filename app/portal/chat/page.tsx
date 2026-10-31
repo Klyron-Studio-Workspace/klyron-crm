@@ -1,12 +1,12 @@
+import { Suspense } from "react"
 import type { Metadata } from "next"
 import { MessagesSquareIcon } from "lucide-react"
 
 import { StartCallButton } from "@/components/calls/start-call-button"
-import { MessageThread } from "@/components/chat/message-thread"
+import { ThreadLoader, ThreadSkeleton } from "@/components/chat/thread-loader"
 import { EmptyState } from "@/components/crm/empty-state"
 import { can, requireClientUser } from "@/lib/auth/dal"
 import { ensureClientChannel, findAccessibleChannel } from "@/lib/chat/access"
-import { getMessages } from "@/lib/chat/queries"
 
 export const metadata: Metadata = { title: "Messages" }
 
@@ -18,19 +18,18 @@ export default async function PortalChatPage() {
   if (!channel) {
     return <EmptyState icon={MessagesSquareIcon} title="Messages aren't available." description="Ask your Klyron contact if you need access." />
   }
-  const [page, canWrite] = await Promise.all([getMessages(channel.id), can(user, "chat", "WRITE")])
+  const canWrite = await can(user, "chat", "WRITE")
 
   return (
-    <section aria-label="Messages with Klyron Studio" className="-my-8 flex h-[calc(100svh-3.5rem)] flex-col">
+    <section data-full-height aria-label="Messages with Klyron Studio" className="flex min-h-0 flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border">
-        <MessagesSquareIcon aria-hidden className="size-4 text-muted-foreground" />
-        <h1 className="text-sm font-semibold">Messages with Klyron Studio</h1>
+        <MessagesSquareIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+        <h1 className="truncate text-sm font-semibold">Messages with Klyron Studio</h1>
         {canWrite && <StartCallButton channelId={channel.id} className="ml-auto" />}
       </header>
-      <MessageThread
+      <Suspense fallback={<ThreadSkeleton />}>
+      <ThreadLoader
         channelId={channel.id}
-        initialMessages={page.messages}
-        initialHasMore={page.hasMore}
         currentUserId={user.id}
         canWrite={canWrite}
         canModerate={false}
@@ -38,6 +37,7 @@ export default async function PortalChatPage() {
         placeholder="Message the Klyron team"
         emptyText="Ask a question, share feedback or send files. The team will reply here."
       />
+      </Suspense>
     </section>
   )
 }

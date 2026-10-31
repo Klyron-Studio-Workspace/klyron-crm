@@ -39,6 +39,7 @@ export async function getOrgBilling() {
       billingEmail: org.billingEmail,
       address: org.address,
       paymentInstructions: org.paymentInstructions,
+      signatureSvg: org.signatureSvg,
     } satisfies StudioDTO,
   }
 }

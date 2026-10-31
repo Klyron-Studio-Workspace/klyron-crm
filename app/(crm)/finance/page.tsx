@@ -28,7 +28,7 @@ export default async function FinanceOverviewPage() {
 
   return (
     <>
-      <section aria-label="Key figures" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <section aria-label="Key figures" className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
         <StatCard label="Collected this month" value={formatTotals(o.collectedThisMonth, { compact: true })} hint={`Net ${formatSigned(o.net, currency)} after expenses`} />
         <StatCard label="Outstanding" value={formatTotals(o.outstanding, { compact: true })} hint={`${o.openCount} open ${o.openCount === 1 ? "invoice" : "invoices"}`} />
         <StatCard

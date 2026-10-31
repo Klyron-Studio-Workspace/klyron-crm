@@ -184,7 +184,7 @@ function MentionHighlights({ text, picked, scrollTop }: { text: string; picked: 
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-0 overflow-hidden px-1 py-2.5 text-sm leading-5 break-words whitespace-pre-wrap text-transparent"
+      className="pointer-events-none absolute inset-0 overflow-hidden px-1 py-2.5 text-sm leading-5 break-words max-sm:py-2 max-sm:text-[16px] whitespace-pre-wrap text-transparent"
       style={{ transform: `translateY(${-scrollTop}px)` }}
     >
       {parts}
@@ -207,7 +207,7 @@ function RowButton({ label, onClick, children }: { label: string; onClick: () =>
             type="button"
             aria-label={label}
             onClick={onClick}
-            className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 ease-out hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&_svg]:size-[18px]"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full text-muted-foreground max-sm:size-9 transition-colors duration-150 ease-out hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none [&_svg]:size-[18px]"
           />
         }
       >
@@ -522,7 +522,7 @@ function Composer({ channelId, placeholder, ref }: ComposerProps) {
           </ul>
         )}
 
-        <div className="flex items-end gap-1 p-1.5">
+        <div className="flex items-end gap-1 p-1.5 max-sm:gap-0.5 max-sm:p-1">
           {recordingVisible ? (
             // ── Recording bar ──
             <div key="rec" className="flex min-h-10 flex-1 items-center gap-1 duration-200 animate-in fade-in-0 slide-in-from-bottom-2" role="status" aria-live="polite">
@@ -641,7 +641,7 @@ function Composer({ channelId, placeholder, ref }: ComposerProps) {
                     }
                   }}
                   // field-sizing grows the box with its content (no JS measuring); capped at ~8 lines.
-                  className="relative block max-h-52 min-h-10 w-full resize-none bg-transparent px-1 py-2.5 text-sm leading-5 outline-none [field-sizing:content] placeholder:text-muted-foreground"
+                  className="relative block max-h-52 min-h-10 w-full resize-none bg-transparent px-1 py-2.5 text-sm leading-5 max-sm:max-h-32 max-sm:min-h-9 max-sm:py-2 outline-none [field-sizing:content] placeholder:text-muted-foreground"
                 />
               </div>
             </>
@@ -653,7 +653,7 @@ function Composer({ channelId, placeholder, ref }: ComposerProps) {
               type="button"
               aria-label="Send voice message"
               onClick={() => void finishVoice(true)}
-              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-transform duration-150 ease-out animate-in zoom-in-75 hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95"
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary max-sm:size-9 text-primary-foreground shadow-sm transition-transform duration-150 ease-out animate-in zoom-in-75 hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95"
             >
               <SendHorizontalIcon className="size-[18px]" />
             </button>
@@ -663,12 +663,12 @@ function Composer({ channelId, placeholder, ref }: ComposerProps) {
               aria-label="Send message"
               disabled={!canSend}
               onClick={submit}
-              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-[transform,opacity] duration-150 ease-out animate-in zoom-in-75 hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95 disabled:opacity-50"
+              className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary max-sm:size-9 text-primary-foreground shadow-sm transition-[transform,opacity] duration-150 ease-out animate-in zoom-in-75 hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95 disabled:opacity-50"
             >
               {sending ? <LoaderCircleIcon className="size-[18px] animate-spin" /> : <SendHorizontalIcon className="size-[18px]" />}
             </button>
           ) : (
-            <span className="relative flex size-10 shrink-0 items-center justify-center">
+            <span className="relative flex size-10 shrink-0 items-center justify-center max-sm:size-9">
               {voiceMode === "holding" && <span aria-hidden className="absolute inset-0 animate-ping rounded-full bg-primary/30" />}
               <button
                 type="button"
@@ -677,7 +677,7 @@ function Composer({ channelId, placeholder, ref }: ComposerProps) {
                 disabled={voiceMode === "sending"}
                 {...micHandlers}
                 className={cn(
-                  "relative flex size-10 touch-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-transform duration-200 ease-out select-none hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50",
+                  "relative flex size-10 touch-none max-sm:size-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm transition-transform duration-200 ease-out select-none hover:bg-primary-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-50",
                   (voiceMode === "holding" || voiceMode === "starting") && "scale-125"
                 )}
               >
